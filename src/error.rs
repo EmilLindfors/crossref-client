@@ -27,6 +27,23 @@ pub enum Error {
         got: MessageType,
     },
 
+    /// a filter value crossref has no way to read back
+    ///
+    /// Crossref splits the `filter` value on `,` after percent-decoding it, so
+    /// a value carrying one arrives as two filters -- `container-title:A, B`
+    /// becomes `container-title:A` plus a filter called ` B`. There is no form
+    /// that survives the split, so the request is refused rather than sent to
+    /// be rejected with a `400`.
+    #[error(
+        "`{value}` cannot be sent as a `{filter}` filter: crossref reads the `,` in it as the start of another filter"
+    )]
+    UnsendableFilterValue {
+        /// the filter whose value cannot be sent, e.g. `container-title`
+        filter: String,
+        /// the value that carries the `,`
+        value: String,
+    },
+
     /// a config error
     #[error("{msg}")]
     Config {

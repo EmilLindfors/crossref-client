@@ -86,6 +86,17 @@ Note that `sort`, `order`, `facet`, `select` and `sample` are `/works`-only:
 so `FundersQuery` and the rest offer terms, paging and -- where the route takes
 one -- a filter, and nothing that cannot be sent.
 
+Two more things a query cannot ask for, for reasons on crossref's side:
+
+* A filter value cannot contain a `,`. Crossref splits the `filter` parameter
+  on it *after* percent-decoding, so `container-title:Ecology, Evolution`
+  arrives as one filter plus another called ` Evolution`, and neither the
+  encoded nor the literal form survives. Such a query is refused with
+  `Error::UnsendableFilterValue` rather than sent to be misread.
+* `select` always includes `DOI`, whether or not it was asked for. It is the
+  one field a `Work` requires, so a page selected without it would come back as
+  works that cannot be deserialized at all.
+
 ### Other formats
 
 Crossref will re-serialize a registered work, so a DOI can be pulled out as

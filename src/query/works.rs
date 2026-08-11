@@ -10,8 +10,8 @@ define_keyed_enum! {
 ///
 /// Passed to [`WorksQuery::elements`]; crossref returns only what was selected,
 /// so every field left out is [`None`] on the resulting `Work`. Covers all 59
-/// fields `/works` accepts, which `every_element_is_accepted_by_the_api` pins
-/// against what the api reports.
+/// fields `/works` accepts, which `every_selectable_element_is_accepted_by_the_api`
+/// pins against what the api reports.
 WorkElement {
     DOI => "DOI",
     ISBN => "ISBN",
@@ -81,10 +81,14 @@ define_filter! {
 /// Covers all 90 filters `/works` accepts; crossref answers an unrecognised
 /// one with [`Error::ValidationFailure`](crate::Error::ValidationFailure)
 /// naming the ones it does know, which is what
-/// `every_filter_is_accepted_by_the_api` pins this list against.
+/// `every_works_filter_is_accepted_by_the_api` pins this list against.
 ///
 /// Note that `location` and `reference-visibility` are *not* among them --
 /// `location` belongs to [`FundersFilter`](crate::query::funders::FundersFilter).
+///
+/// A value carrying a `,` cannot be sent at all, whatever the filter: crossref
+/// splits the `filter` parameter on it after decoding, so the query is refused
+/// with [`Error::UnsendableFilterValue`](crate::Error::UnsendableFilterValue).
 WorksFilter;
 markers {
     /// metadata which includes one or more funder entry
@@ -666,9 +670,11 @@ impl WorksQuery {
     /// Narrow the response to the given fields.
     ///
     /// Crossref returns only what is selected, so every field left out is
-    /// [`None`] on the resulting [`Work`](crate::Work). Include
-    /// [`WorkElement::DOI`] unless you have no use for it -- it is the one
-    /// field [`Work`](crate::Work) still requires.
+    /// [`None`] on the resulting [`Work`](crate::Work).
+    ///
+    /// [`WorkElement::DOI`] is always sent, whether or not it is asked for: it
+    /// is the one field [`Work`](crate::Work) requires, so a response without
+    /// it could not be read back at all.
     pub fn elements(mut self, element: Vec<WorkElement>) -> Self {
         self.elements.extend(element);
         self
@@ -804,6 +810,29 @@ pub struct WorksQuery {
     pub sample: Option<usize>,
 }
 
+/// Renders `elements` into a `select` value, with [`WorkElement::DOI`] in it.
+///
+/// A [`Work`](crate::Work) requires a DOI -- it is the identifier every other
+/// field hangs off, and the one thing crossref assigns rather than accepting
+/// from the depositing member -- so a page selected without it deserializes
+/// into nothing at all. Sending it regardless costs one field per work and is
+/// the difference between a narrowed response and an [`Error::Serde`] the
+/// caller cannot act on.
+///
+/// [`Error::Serde`]: crate::Error::Serde
+fn select_value(elements: &[WorkElement]) -> String {
+    let selected = elements.iter().map(WorkElement::name);
+
+    if elements.contains(&WorkElement::DOI) {
+        selected.collect::<Vec<_>>().join(",")
+    } else {
+        std::iter::once(WorkElement::DOI.name())
+            .chain(selected)
+            .collect::<Vec<_>>()
+            .join(",")
+    }
+}
+
 impl CrossrefRoute for WorksQuery {
     fn route(&self) -> Result<String> {
         let mut params: Vec<(Cow<'_, str>, Cow<'_, str>)> = Vec::new();
@@ -829,18 +858,13 @@ impl CrossrefRoute for WorksQuery {
                 .flat_map(CrossrefQueryParam::params),
         );
         if !self.filter.is_empty() {
+            reject_unsendable_filters(&self.filter)?;
             params.extend(self.filter.params());
         }
         if !self.elements.is_empty() {
             params.push((
                 Cow::Borrowed("select"),
-                Cow::Owned(
-                    self.elements
-                        .iter()
-                        .map(WorkElement::name)
-                        .collect::<Vec<_>>()
-                        .join(","),
-                ),
+                Cow::Owned(select_value(&self.elements)),
             ));
         }
         if !self.facets.is_empty() {
@@ -953,6 +977,34 @@ mod tests {
             .unwrap();
 
         assert_eq!("/works?select=DOI,title", &route);
+    }
+
+    #[test]
+    fn a_select_that_omits_the_doi_still_asks_for_it() {
+        // `Work` requires a DOI, so `select=title` would come back as a page of
+        // works none of which deserialize
+        let route = WorksQuery::empty()
+            .elements(vec![WorkElement::Title])
+            .route()
+            .unwrap();
+
+        assert_eq!("/works?select=DOI,title", &route);
+    }
+
+    #[test]
+    fn a_filter_value_with_a_comma_in_it_is_refused() {
+        // crossref splits the `filter` value on `,` after decoding it, so this
+        // would arrive as `container-title:A` plus a filter called ` B`
+        let error = WorksQuery::empty()
+            .filter(WorksFilter::ContainerTitle("A, B".to_string()))
+            .route()
+            .expect_err("crossref cannot read this back");
+
+        let crate::Error::UnsendableFilterValue { filter, value } = error else {
+            panic!("expected an unsendable filter value, got {error:?}");
+        };
+        assert_eq!("container-title", filter);
+        assert_eq!("A, B", value);
     }
 
     #[test]

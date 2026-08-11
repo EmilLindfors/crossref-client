@@ -22,22 +22,11 @@ use std::str::FromStr;
 pub(crate) trait FilterValue {
     /// the value as it appears after the `:`
     fn render(&self) -> Cow<'_, str>;
-
-    /// a value of this type, for the filter coverage tests
-    #[cfg(test)]
-    fn sample() -> Self
-    where
-        Self: Sized;
 }
 
 impl FilterValue for String {
     fn render(&self) -> Cow<'_, str> {
         Cow::Borrowed(self)
-    }
-
-    #[cfg(test)]
-    fn sample() -> Self {
-        "sample".to_string()
     }
 }
 
@@ -45,21 +34,11 @@ impl FilterValue for i32 {
     fn render(&self) -> Cow<'_, str> {
         Cow::Owned(self.to_string())
     }
-
-    #[cfg(test)]
-    fn sample() -> Self {
-        1
-    }
 }
 
 impl FilterValue for u64 {
     fn render(&self) -> Cow<'_, str> {
         Cow::Owned(self.to_string())
-    }
-
-    #[cfg(test)]
-    fn sample() -> Self {
-        1
     }
 }
 
@@ -67,21 +46,11 @@ impl FilterValue for chrono::NaiveDate {
     fn render(&self) -> Cow<'_, str> {
         Cow::Owned(self.format("%Y-%m-%d").to_string())
     }
-
-    #[cfg(test)]
-    fn sample() -> Self {
-        chrono::NaiveDate::default()
-    }
 }
 
 impl FilterValue for types::Type {
     fn render(&self) -> Cow<'_, str> {
         Cow::Borrowed(self.id())
-    }
-
-    #[cfg(test)]
-    fn sample() -> Self {
-        types::Type::JournalArticle
     }
 }
 
@@ -106,23 +75,19 @@ macro_rules! define_filter {
         }
 
         impl $name {
+            /// Every filter name this route accepts, in declaration order.
+            ///
+            /// Pinned against the list crossref reports in its `400` body by
+            /// the coverage tests, so it is the vocabulary of the live api
+            /// rather than of this crate's enum.
+            pub const ALL_NAMES: &'static [&'static str] = &[$($m_key,)* $($v_key,)*];
+
             /// the key this filter renders under in the query string
             pub fn name(&self) -> &'static str {
                 match self {
                     $($name::$m_variant => $m_key,)*
                     $($name::$v_variant(_) => $v_key,)*
                 }
-            }
-
-            /// One of every variant, in declaration order.
-            #[cfg(test)]
-            pub(crate) fn one_of_each() -> Vec<Self> {
-                vec![
-                    $($name::$m_variant,)*
-                    $($name::$v_variant(
-                        <$v_ty as $crate::query::FilterValue>::sample()
-                    ),)*
-                ]
             }
         }
 
@@ -222,6 +187,7 @@ macro_rules! impl_list_query {
                 $(
                     let filters: &[$filter] = &self.filter;
                     if !filters.is_empty() {
+                        $crate::query::reject_unsendable_filters(filters)?;
                         params.extend(self.filter.params());
                     }
                 )?
@@ -291,6 +257,10 @@ macro_rules! define_field_queries {
         }
 
         impl FieldQuery {
+            /// Every field `/works` can be queried against, in declaration
+            /// order -- the `author` of `query.author`.
+            pub const ALL_FIELDS: &'static [&'static str] = &[$($key,)*];
+
             /// the key this renders under in the query string, e.g. `query.author`
             pub fn name(&self) -> &'static str {
                 match self { $(FieldQuery::$variant(_) => concat!("query.", $key),)* }
@@ -304,12 +274,6 @@ macro_rules! define_field_queries {
             /// the term being matched
             pub fn value(&self) -> &str {
                 match self { $(FieldQuery::$variant(value) => value,)* }
-            }
-
-            /// One of every variant, in declaration order.
-            #[cfg(test)]
-            pub(crate) fn one_of_each() -> Vec<Self> {
-                vec![$(FieldQuery::$variant(String::from("sample")),)*]
             }
 
             $(
@@ -431,6 +395,22 @@ pub enum Sort {
 }
 
 impl Sort {
+    /// Every field `/works` can be sorted by, in declaration order.
+    pub const ALL: &'static [Sort] = &[
+        Sort::Score,
+        Sort::Updated,
+        Sort::Deposited,
+        Sort::Indexed,
+        Sort::Published,
+        Sort::PublishedPrint,
+        Sort::PublishedOnline,
+        Sort::Issued,
+        Sort::IsReferencedByCount,
+        Sort::ReferenceCount,
+        Sort::Created,
+        Sort::Relevance,
+    ];
+
     /// the key name for the filter element
     pub fn as_str(&self) -> &str {
         match self {
@@ -729,6 +709,29 @@ pub trait CrossrefQuery: CrossrefRoute + Clone {
     }
 }
 
+/// Refuses a filter value crossref would read as two filters.
+///
+/// Crossref splits the `filter` value on `,` *after* percent-decoding it, so a
+/// value carrying one arrives as two fragments -- `container-title:A, B`
+/// becomes the filter `container-title:A` plus a filter called ` B`, which the
+/// api answers with a `400`. Neither the encoded nor the literal form survives,
+/// so there is nothing to escape it with and the request is refused here
+/// instead, where the error can say which filter is at fault.
+pub(crate) fn reject_unsendable_filters<T: Filter>(filters: &[T]) -> Result<()> {
+    for filter in filters {
+        match filter.value() {
+            Some(value) if value.contains(',') => {
+                return Err(crate::Error::UnsendableFilterValue {
+                    filter: filter.key().into_owned(),
+                    value: value.into_owned(),
+                });
+            }
+            _ => (),
+        }
+    }
+    Ok(())
+}
+
 /// normalizes a query term by collapsing runs of whitespace into single spaces
 ///
 /// Crossref reads the `query` value as a whitespace separated list of terms.
@@ -805,36 +808,16 @@ mod tests {
         "deposited",
     ];
 
-    const ALL_SORTS: &[Sort] = &[
-        Sort::Score,
-        Sort::Updated,
-        Sort::Deposited,
-        Sort::Indexed,
-        Sort::Published,
-        Sort::PublishedPrint,
-        Sort::PublishedOnline,
-        Sort::Issued,
-        Sort::IsReferencedByCount,
-        Sort::ReferenceCount,
-        Sort::Created,
-        Sort::Relevance,
-    ];
-
     #[test]
     fn every_sort_key_is_accepted_by_the_api() {
-        for sort in ALL_SORTS {
-            assert!(
-                API_SORT_FIELDS.contains(&sort.as_str()),
-                "`{:?}` renders as `{}`, which crossref rejects with a 400",
-                sort,
-                sort.as_str()
-            );
-        }
+        let names: Vec<&str> = Sort::ALL.iter().map(Sort::as_str).collect();
+
+        assert_matches_api("/works sort fields", &names, API_SORT_FIELDS);
     }
 
     #[test]
     fn sort_round_trips_through_from_str() {
-        for sort in ALL_SORTS {
+        for sort in Sort::ALL {
             assert_eq!(Ok(*sort), Sort::from_str(sort.as_str()));
         }
     }
@@ -1036,18 +1019,16 @@ mod tests {
 
     #[test]
     fn every_works_filter_is_accepted_by_the_api() {
-        let filters = WorksFilter::one_of_each();
-        let names: Vec<&str> = filters.iter().map(WorksFilter::name).collect();
-
-        assert_matches_api("/works filters", &names, API_WORKS_FILTERS);
+        assert_matches_api("/works filters", WorksFilter::ALL_NAMES, API_WORKS_FILTERS);
     }
 
     #[test]
     fn every_field_query_is_accepted_by_the_api() {
-        let queries = FieldQuery::one_of_each();
-        let fields: Vec<&str> = queries.iter().map(FieldQuery::field).collect();
-
-        assert_matches_api("/works field queries", &fields, API_FIELD_QUERIES);
+        assert_matches_api(
+            "/works field queries",
+            FieldQuery::ALL_FIELDS,
+            API_FIELD_QUERIES,
+        );
     }
 
     #[test]
@@ -1059,18 +1040,20 @@ mod tests {
 
     #[test]
     fn every_funders_filter_is_accepted_by_the_api() {
-        let filters = FundersFilter::one_of_each();
-        let names: Vec<&str> = filters.iter().map(FundersFilter::name).collect();
-
-        assert_matches_api("/funders filters", &names, API_FUNDERS_FILTERS);
+        assert_matches_api(
+            "/funders filters",
+            FundersFilter::ALL_NAMES,
+            API_FUNDERS_FILTERS,
+        );
     }
 
     #[test]
     fn every_members_filter_is_accepted_by_the_api() {
-        let filters = MembersFilter::one_of_each();
-        let names: Vec<&str> = filters.iter().map(MembersFilter::name).collect();
-
-        assert_matches_api("/members filters", &names, API_MEMBERS_FILTERS);
+        assert_matches_api(
+            "/members filters",
+            MembersFilter::ALL_NAMES,
+            API_MEMBERS_FILTERS,
+        );
     }
 
     #[test]
