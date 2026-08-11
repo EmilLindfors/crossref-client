@@ -493,11 +493,11 @@ impl FieldQuery {
 }
 
 impl CrossrefQueryParam for FieldQuery {
-    fn param_key(&self) -> Cow<'_, str> {
-        Cow::Borrowed(&self.name)
-    }
-    fn param_value(&self) -> Option<Cow<'_, str>> {
-        Some(Cow::Owned(format_query(&self.value)))
+    fn params(&self) -> Vec<(Cow<'_, str>, Cow<'_, str>)> {
+        vec![(
+            Cow::Borrowed(&self.name),
+            Cow::Owned(format_query(&self.value)),
+        )]
     }
 }
 
@@ -540,26 +540,19 @@ impl Default for WorkResultControl {
 }
 
 impl CrossrefQueryParam for WorkResultControl {
-    // `Cursor` spans two query parameters, so it renders both from `param_key`
-    // and leaves `param_value` empty rather than letting `param` join them with
-    // an `=`, which produced `cursor=*=rows=20`.
-    fn param_key(&self) -> Cow<'_, str> {
+    fn params(&self) -> Vec<(Cow<'_, str>, Cow<'_, str>)> {
         match self {
-            WorkResultControl::Standard(s) => s.param_key(),
+            WorkResultControl::Standard(standard) => standard.params(),
             WorkResultControl::Cursor { token, rows } => {
-                let token = token.as_deref().unwrap_or("*");
-                match rows {
-                    Some(rows) => Cow::Owned(format!("cursor={}&rows={}", token, rows)),
-                    None => Cow::Owned(format!("cursor={}", token)),
+                let mut params = vec![(
+                    Cow::Borrowed("cursor"),
+                    Cow::Borrowed(token.as_deref().unwrap_or("*")),
+                )];
+                if let Some(rows) = rows {
+                    params.push((Cow::Borrowed("rows"), Cow::Owned(rows.to_string())));
                 }
+                params
             }
-        }
-    }
-
-    fn param_value(&self) -> Option<Cow<'_, str>> {
-        match self {
-            WorkResultControl::Standard(s) => s.param_value(),
-            WorkResultControl::Cursor { .. } => None,
         }
     }
 }
@@ -832,11 +825,16 @@ impl WorksQuery {
         self
     }
 
-        /// select which fields to return
-        pub fn elements(mut self, element: Vec<WorkElement>) -> Self {
-            self.elements.extend(element);
-            self
-        }
+    /// Narrow the response to the given fields.
+    ///
+    /// Crossref returns only what is selected, so every field left out is
+    /// [`None`] on the resulting [`Work`](crate::Work). Include
+    /// [`WorkElement::DOI`] unless you have no use for it -- it is the one
+    /// field [`Work`](crate::Work) still requires.
+    pub fn elements(mut self, element: Vec<WorkElement>) -> Self {
+        self.elements.extend(element);
+        self
+    }
 
     /// ```no_run
     /// use crossref_client::{FieldQuery,WorksQuery};
@@ -970,51 +968,56 @@ pub struct WorksQuery {
 
 impl CrossrefRoute for WorksQuery {
     fn route(&self) -> Result<String> {
-        let mut params = Vec::new();
+        let mut params: Vec<(Cow<'_, str>, Cow<'_, str>)> = Vec::new();
 
         if let Some(sample) = self.sample {
-            return Ok(format!("{}?sample={}", Component::Works.route()?, sample));
+            params.push((Cow::Borrowed("sample"), Cow::Owned(sample.to_string())));
+            return Ok(format!(
+                "{}{}",
+                Component::Works.route()?,
+                encode::query_string(&params)
+            ));
         }
 
         if !self.free_form_queries.is_empty() {
-            params.push(Cow::Owned(format!(
-                "query={}",
-                format_queries(&self.free_form_queries)
-            )));
+            params.push((
+                Cow::Borrowed("query"),
+                Cow::Owned(format_queries(&self.free_form_queries)),
+            ));
         }
-        if !self.field_queries.is_empty() {
-            params.extend(self.field_queries.iter().map(CrossrefQueryParam::param))
-        }
+        params.extend(self.field_queries.iter().flat_map(CrossrefQueryParam::params));
         if !self.filter.is_empty() {
-            params.push(self.filter.param());
+            params.extend(self.filter.params());
         }
         if !self.elements.is_empty() {
-    
-            let mut elements = self.elements.iter().fold("select=".to_string(), |mut acc, e| {
-                acc.push_str(e.name());
-                acc.push(',');
-                acc
-            });
-            elements.pop();
-            params.push(Cow::Owned(elements));
+            params.push((
+                Cow::Borrowed("select"),
+                Cow::Owned(
+                    self.elements
+                        .iter()
+                        .map(WorkElement::name)
+                        .collect::<Vec<_>>()
+                        .join(","),
+                ),
+            ));
         }
         if !self.facets.is_empty() {
-            params.push(self.facets.param());
+            params.extend(self.facets.params());
         }
         if let Some(sort) = &self.sort {
-            params.push(sort.param());
+            params.extend(sort.params());
         }
         if let Some(order) = &self.order {
-            params.push(order.param());
+            params.extend(order.params());
         }
         if let Some(rc) = &self.result_control {
-            params.push(rc.param());
+            params.extend(rc.params());
         }
 
         Ok(format!(
-            "{}?{}",
+            "{}{}",
             Component::Works.route()?,
-            params.join("&")
+            encode::query_string(&params)
         ))
     }
 }
@@ -1097,6 +1100,56 @@ mod tests {
         let query = WorksQuery::empty().new_cursor();
 
         assert_eq!("/works?cursor=*", &query.route().unwrap());
+    }
+
+    #[test]
+    fn a_query_term_can_no_longer_inject_a_parameter() {
+        // `/works?query=R&D` reaches crossref as `query=R` plus a stray `D`
+        assert_eq!(
+            "/works?query=R%26D",
+            &WorksQuery::new("R&D").route().unwrap()
+        );
+    }
+
+    #[test]
+    fn filter_and_field_query_values_are_encoded_too() {
+        let route = WorksQuery::empty()
+            .field_query(FieldQuery::container_title("Ecology & Evolution"))
+            .filter(WorksFilter::ContainerTitle("Q&A".to_string()))
+            .route()
+            .unwrap();
+
+        assert_eq!(
+            "/works?query.container-title=Ecology%20%26%20Evolution&filter=container-title:Q%26A",
+            &route
+        );
+    }
+
+    #[test]
+    fn an_empty_query_targets_the_bare_works_route() {
+        assert_eq!("/works", &WorksQuery::empty().route().unwrap());
+    }
+
+    #[test]
+    fn selected_elements_render_as_one_comma_separated_parameter() {
+        let route = WorksQuery::empty()
+            .elements(vec![WorkElement::DOI, WorkElement::Title])
+            .route()
+            .unwrap();
+
+        assert_eq!("/works?select=DOI,title", &route);
+    }
+
+    #[test]
+    fn rows_offset_renders_two_parameters() {
+        let query = WorksQuery::empty().result_control(WorkResultControl::Standard(
+            ResultControl::RowsOffset {
+                rows: 10,
+                offset: 20,
+            },
+        ));
+
+        assert_eq!("/works?rows=10&offset=20", &query.route().unwrap());
     }
 
     #[test]

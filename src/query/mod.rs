@@ -1,7 +1,7 @@
 use crate::error::Result;
 use crate::query::facet::FacetCount;
 pub use crate::query::funders::{Funders, FundersQuery};
-pub use crate::query::journals::Journals;
+pub use crate::query::journals::{Journals, JournalsQuery};
 pub use crate::query::members::{Members, MembersQuery};
 pub use crate::query::prefixes::Prefixes;
 pub use crate::query::types::{Type, Types};
@@ -134,34 +134,36 @@ macro_rules! impl_common_query {
 
         impl CrossrefRoute for $i {
             fn route(&self) -> Result<String> {
-                let mut params = Vec::new();
+                let mut params: Vec<(Cow<'_, str>, Cow<'_, str>)> = Vec::new();
                 if !self.queries.is_empty() {
-                    params.push(Cow::Owned(format!(
-                        "query={}",
-                        format_queries(&self.queries)
-                    )));
+                    params.push((
+                        Cow::Borrowed("query"),
+                        Cow::Owned(format_queries(&self.queries)),
+                    ));
                 }
                 if !self.filter.is_empty() {
-                    params.push(self.filter.param());
+                    params.extend(self.filter.params());
                 }
                 if !self.facets.is_empty() {
-                    params.push(self.facets.param());
+                    params.extend(self.facets.params());
                 }
                 if let Some(sort) = &self.sort {
-                    params.push(sort.param());
+                    params.extend(sort.params());
                 }
                 if let Some(order) = &self.order {
-                    params.push(order.param());
+                    params.extend(order.params());
                 }
                 if let Some(rc) = &self.result_control {
-                    params.push(rc.param());
+                    params.extend(rc.params());
                 }
-                Ok(params.join("&"))
+                Ok(encode::query_string(&params))
             }
         }
     };
 }
 
+/// percent-encoding of the crossref query string
+pub(crate) mod encode;
 /// provides types to filter facets
 pub mod facet;
 /// provides support to query the `/funders` route
@@ -230,12 +232,8 @@ impl FromStr for Order {
 }
 
 impl CrossrefQueryParam for Order {
-    fn param_key(&self) -> Cow<'_, str> {
-        Cow::Borrowed("order")
-    }
-
-    fn param_value(&self) -> Option<Cow<'_, str>> {
-        Some(Cow::Borrowed(self.as_str()))
+    fn params(&self) -> Vec<(Cow<'_, str>, Cow<'_, str>)> {
+        vec![(Cow::Borrowed("order"), Cow::Borrowed(self.as_str()))]
     }
 }
 
@@ -312,12 +310,8 @@ impl FromStr for Sort {
 }
 
 impl CrossrefQueryParam for Sort {
-    fn param_key(&self) -> Cow<'_, str> {
-        Cow::Borrowed("sort")
-    }
-
-    fn param_value(&self) -> Option<Cow<'_, str>> {
-        Some(Cow::Borrowed(self.as_str()))
+    fn params(&self) -> Vec<(Cow<'_, str>, Cow<'_, str>)> {
+        vec![(Cow::Borrowed("sort"), Cow::Borrowed(self.as_str()))]
     }
 }
 
@@ -341,23 +335,19 @@ pub enum ResultControl {
 }
 
 impl CrossrefQueryParam for ResultControl {
-    fn param_key(&self) -> Cow<'_, str> {
+    fn params(&self) -> Vec<(Cow<'_, str>, Cow<'_, str>)> {
         match self {
-            ResultControl::Rows(_) => Cow::Borrowed("rows"),
-            ResultControl::Offset(_) => Cow::Borrowed("offset"),
-            ResultControl::RowsOffset { rows, offset } => {
-                Cow::Owned(format!("rows={}&offset={}", rows, offset))
+            ResultControl::Rows(rows) => vec![(Cow::Borrowed("rows"), Cow::Owned(rows.to_string()))],
+            ResultControl::Offset(offset) => {
+                vec![(Cow::Borrowed("offset"), Cow::Owned(offset.to_string()))]
             }
-            ResultControl::Sample(_) => Cow::Borrowed("sample"),
-        }
-    }
-
-    fn param_value(&self) -> Option<Cow<'_, str>> {
-        match self {
-            ResultControl::Rows(r) | ResultControl::Offset(r) | ResultControl::Sample(r) => {
-                Some(Cow::Owned(r.to_string()))
+            ResultControl::RowsOffset { rows, offset } => vec![
+                (Cow::Borrowed("rows"), Cow::Owned(rows.to_string())),
+                (Cow::Borrowed("offset"), Cow::Owned(offset.to_string())),
+            ],
+            ResultControl::Sample(sample) => {
+                vec![(Cow::Borrowed("sample"), Cow::Owned(sample.to_string()))]
             }
-            ResultControl::RowsOffset { rows: _, offset: _ } => None
         }
     }
 }
@@ -461,19 +451,17 @@ impl CrossrefQuery for ResourceComponent {
 pub trait Filter: ParamFragment {}
 
 impl<T: Filter> CrossrefQueryParam for Vec<T> {
-    /// always use `filter` as the key
-    fn param_key(&self) -> Cow<'_, str> {
-        Cow::Borrowed("filter")
-    }
-
-    /// filters are multi value and values are concat with `,`
-    fn param_value(&self) -> Option<Cow<'_, str>> {
-        Some(Cow::Owned(
-            self.iter()
-                .map(ParamFragment::fragment)
-                .collect::<Vec<_>>()
-                .join(","),
-        ))
+    /// filters share the `filter` key and are concat with `,`
+    fn params(&self) -> Vec<(Cow<'_, str>, Cow<'_, str>)> {
+        vec![(
+            Cow::Borrowed("filter"),
+            Cow::Owned(
+                self.iter()
+                    .map(ParamFragment::fragment)
+                    .collect::<Vec<_>>()
+                    .join(","),
+            ),
+        )]
     }
 }
 
@@ -497,27 +485,22 @@ pub trait ParamFragment {
 
 /// a trait used to capture parameters for the query string of the crossref api
 pub trait CrossrefQueryParam {
-    /// the key name of the parameter in the query string
-    fn param_key(&self) -> Cow<'_, str>;
-    /// the value of the parameter, if any
-    fn param_value(&self) -> Option<Cow<'_, str>>;
-    /// constructs the full parameter for the query string by combining the key and value
-    fn param(&self) -> Cow<'_, str> {
-        if let Some(val) = self.param_value() {
-            Cow::Owned(format!("{}={}", self.param_key(), val))
-        } else {
-            self.param_key()
-        }
-    }
+    /// The key/value pairs this element contributes to the query string.
+    ///
+    /// Most elements contribute exactly one pair, but a few span two --
+    /// [`ResultControl::RowsOffset`] and [`works::WorkResultControl::Cursor`]
+    /// with a row limit. Yielding pairs rather than a rendered `key=value`
+    /// fragment is what lets the route builder percent-encode keys and values
+    /// separately.
+    fn params(&self) -> Vec<(Cow<'_, str>, Cow<'_, str>)>;
 }
 
 impl<T: AsRef<str>> CrossrefQueryParam for (T, T) {
-    fn param_key(&self) -> Cow<'_, str> {
-        Cow::Borrowed(self.0.as_ref())
-    }
-
-    fn param_value(&self) -> Option<Cow<'_, str>> {
-        Some(Cow::Borrowed(self.1.as_ref()))
+    fn params(&self) -> Vec<(Cow<'_, str>, Cow<'_, str>)> {
+        vec![(
+            Cow::Borrowed(self.0.as_ref()),
+            Cow::Borrowed(self.1.as_ref()),
+        )]
     }
 }
 
@@ -525,17 +508,6 @@ impl<T: AsRef<str>> CrossrefQueryParam for (T, T) {
 pub trait CrossrefRoute {
     /// constructs the route for the crossref api
     fn route(&self) -> Result<String>;
-}
-
-impl<T: CrossrefQueryParam> CrossrefRoute for dyn AsRef<[T]> {
-    fn route(&self) -> Result<String> {
-        Ok(self
-            .as_ref()
-            .iter()
-            .map(CrossrefQueryParam::param)
-            .collect::<Vec<_>>()
-            .join("&"))
-    }
 }
 
 /// root level trait to construct full crossref api request urls
@@ -549,23 +521,27 @@ pub trait CrossrefQuery: CrossrefRoute + Clone {
     }
 }
 
-/// formats the topic for crossref by replacing all whitespaces whit `+`
+/// normalizes a query term by collapsing runs of whitespace into single spaces
+///
+/// Crossref reads the `query` value as a whitespace separated list of terms.
+/// The separator is a plain space rather than the `+` it renders as on the wire,
+/// because [`encode`] escapes the value afterwards and a literal `+` there would
+/// come back out as one.
 pub(crate) fn format_query<T: AsRef<str>>(topic: T) -> String {
     topic
         .as_ref()
         .split_whitespace()
         .collect::<Vec<_>>()
-        .join("+")
+        .join(" ")
 }
 
-/// formats the individual topics of a query into the format crossref expects
-/// returns a single String consisting of all words combined by '+'
+/// combines the individual topics of a query into a single `query` value
 pub(crate) fn format_queries<T: AsRef<str>>(topics: &[T]) -> String {
     topics
         .iter()
-        .map(format_query)
+        .flat_map(|topic| topic.as_ref().split_whitespace())
         .collect::<Vec<_>>()
-        .join("+")
+        .join(" ")
 }
 
 #[cfg(test)]

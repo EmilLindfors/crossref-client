@@ -192,6 +192,7 @@
 //! let mut pages = client.deep_page(WorksQuery::new("Machine Learning"));
 //! let mut all_works: Vec<Work> = Vec::new();
 //! while let Some(page) = pages.next().await {
+//!     let page = page?;
 //!     all_works.extend(page.items);
 //! }
 //!
@@ -209,6 +210,7 @@
 //! let mut works = client.deep_page("Machine Learning").into_work_iter();
 //! let mut all_works: Vec<Work> = Vec::new();
 //! while let Some(work) = works.next().await {
+//!     let work = work?;
 //!     all_works.push(work);
 //! }
 //!
@@ -230,6 +232,7 @@
 //! let mut pages = client.deep_page(WorksQuery::default().into_combined_query::<Funders>("funder id"));
 //! let mut all_funder_work_list: Vec<WorkList> = Vec::new();
 //! while let Some(page) = pages.next().await {
+//!     let page = page?;
 //!     all_funder_work_list.push(page);
 //! }
 //!
@@ -250,6 +253,7 @@
 //!         .into_work_iter();
 //! let mut all_works: Vec<Work> = Vec::new();
 //! while let Some(work) = works.next().await {
+//!     let work = work?;
 //!     all_works.push(work);
 //! }
 //!
@@ -279,15 +283,15 @@ pub use self::error::{Error, Result};
 
 #[doc(inline)]
 pub use self::query::works::{
-    FieldQuery, WorkListQuery, WorkResultControl, Works, WorksFilter, WorksIdentQuery, WorksQuery,
+    FieldQuery, WorkElement, WorkListQuery, WorkResultControl, Works, WorksFilter, WorksIdentQuery,
+    WorksQuery,
 };
 
 #[doc(inline)]
 pub use self::query::{Component, CrossrefQuery, CrossrefRoute, Order, ResultControl, Sort};
 pub use self::query::facet::{Facet, FacetCount};
-pub use self::query::journals::JournalResultControl;
 pub use self::query::{
-    Funders, FundersQuery, Journals, Members, MembersQuery, Prefixes, Type, Types,
+    Funders, FundersQuery, Journals, JournalsQuery, Members, MembersQuery, Prefixes, Type, Types,
 };
 pub use self::response::{
     CrossrefType, Funder, FunderList, Journal, JournalList, Member, MemberList, TypeList, Work,
@@ -465,6 +469,7 @@ impl Crossref {
     /// let mut pages = client.deep_page(WorksQuery::new("Machine Learning"));
     /// let mut all_works: Vec<Work> = Vec::new();
     /// while let Some(page) = pages.next().await {
+    ///     let page = page?;
     ///     all_works.extend(page.items);
     /// }
     ///
@@ -485,6 +490,7 @@ impl Crossref {
     /// let mut pages = client.deep_page(WorksQuery::default().into_combined_query::<Funders>("funder id"));
     /// let mut all_funder_work_list: Vec<WorkList> = Vec::new();
     /// while let Some(page) = pages.next().await {
+    ///     let page = page?;
     ///     all_funder_work_list.push(page);
     /// }
     ///
@@ -505,6 +511,7 @@ impl Crossref {
     ///         .into_work_iter();
     /// let mut all_works: Vec<Work> = Vec::new();
     /// while let Some(work) = works.next().await {
+    ///     let work = work?;
     ///     all_works.push(work);
     /// }
     ///
@@ -594,19 +601,23 @@ impl Crossref {
         get_item!(Journal, resp.message, resp.message_type).map(|x| *x)
     }
 
-    /// Return all [Journals] matching the query
-    pub async fn journals(
-        &self,
-        query: String,
-        result_control: Option<JournalResultControl>,
-    ) -> Result<JournalList> {
-        if let Some(rc) = result_control {
-            let resp = self.get_response(&Journals::Query(query, Some(rc))).await?;
-            get_item!(JournalList, resp.message, resp.message_type)
-        } else {
-            let resp = self.get_response(&Journals::Query(query, None)).await?;
-            get_item!(JournalList, resp.message, resp.message_type)
-        }
+    /// Return the matching `Journal` items.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use crossref_client::{Crossref, JournalsQuery, ResultControl};
+    /// # async fn run() -> Result<(), crossref_client::Error> {
+    /// # let client = Crossref::builder().build()?;
+    /// let journals = client
+    ///     .journals(JournalsQuery::new("Economic Geography").result_control(ResultControl::Rows(10)))
+    ///     .await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub async fn journals(&self, journals: JournalsQuery) -> Result<JournalList> {
+        let resp = self.get_response(&Journals::Query(journals)).await?;
+        get_item!(JournalList, resp.message, resp.message_type)
     }
 
     /// Return all available `Type`
@@ -798,21 +809,25 @@ pub struct WorkIterator<'a> {
 }
 
 impl async_iterator::Iterator for WorkIterator<'_> {
-    type Item = Work;
+    type Item = Result<Work>;
 
     async fn next(&mut self) -> Option<Self::Item> {
         loop {
             if let Some(work) = self.buffer.next() {
-                return Some(work);
+                return Some(Ok(work));
             }
-            // `WorkListIterator` stops on the first empty page, so this terminates
-            self.buffer = self.pages.next().await?.items.into_iter();
+            // `WorkListIterator` stops on the first empty page and after an
+            // error, so this terminates
+            match self.pages.next().await? {
+                Ok(page) => self.buffer = page.items.into_iter(),
+                Err(err) => return Some(Err(err)),
+            }
         }
     }
 }
 
 impl async_iterator::Iterator for WorkListIterator<'_> {
-    type Item = WorkList;
+    type Item = Result<WorkList>;
 
     async fn next(&mut self) -> Option<Self::Item> {
         if self.finish_next_iteration {
@@ -828,39 +843,43 @@ impl async_iterator::Iterator for WorkListIterator<'_> {
             }
         }
 
-        let resp = self.client.get_response(&self.query).await;
-        if let Ok(resp) = resp {
-            let worklist: Result<WorkList> = get_item!(WorkList, resp.message, resp.message_type);
-            if let Ok(worklist) = worklist {
-                if let Some(cursor) = &worklist.next_cursor {
-                    match &mut self.query.query_mut().result_control {
-                        Some(WorkResultControl::Cursor { token, .. }) => {
-                            // use the received cursor token in next iteration
-                            *token = Some(cursor.clone())
-                        }
-                        Some(WorkResultControl::Standard(_)) => {
-                            // standard result control was set, don't deep page and return next iteration
-                            self.finish_next_iteration = true;
-                        }
-                        _ => (),
-                    }
-                } else {
-                    // no cursor received, end next iteration
+        let page = match self.client.get_response(&self.query).await {
+            Ok(resp) => get_item!(WorkList, resp.message, resp.message_type),
+            Err(err) => Err(err),
+        };
+
+        let worklist = match page {
+            Ok(worklist) => worklist,
+            Err(err) => {
+                // a transient `429` or an unparsable page used to end the
+                // iteration silently, which a caller cannot tell apart from
+                // having crawled everything -- surface it and stop
+                self.finish_next_iteration = true;
+                return Some(Err(err));
+            }
+        };
+
+        if let Some(cursor) = &worklist.next_cursor {
+            match &mut self.query.query_mut().result_control {
+                Some(WorkResultControl::Cursor { token, .. }) => {
+                    // use the received cursor token in next iteration
+                    *token = Some(cursor.clone())
+                }
+                Some(WorkResultControl::Standard(_)) => {
+                    // standard result control was set, don't deep page and return next iteration
                     self.finish_next_iteration = true;
                 }
-
-                if worklist.items.is_empty() {
-                    None
-                } else {
-                    Some(worklist)
-                }
-            } else {
-                // failed to deserialize response into `WorkList`
-                None
+                _ => (),
             }
         } else {
-            // no response received
+            // no cursor received, end next iteration
+            self.finish_next_iteration = true;
+        }
+
+        if worklist.items.is_empty() {
             None
+        } else {
+            Some(Ok(worklist))
         }
     }
 }

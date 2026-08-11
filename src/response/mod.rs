@@ -50,7 +50,13 @@ impl TryFrom<serde_json::Value> for Response {
                                 msg: "message-type".to_string(),
                             },
                         )?)?;
-                let message_version = map.get("message-version").map_or("1.0.0", |v| v.as_str().unwrap());
+                let message_version = match map.get("message-version") {
+                    Some(version) => version.as_str().ok_or_else(|| Error::InvalidField {
+                        msg: "message-version".to_string(),
+                    })?,
+                    // some routes omit it entirely
+                    None => "1.0.0",
+                };
                 let message = map.get("message").ok_or_else(|| Error::MissingField {
                     msg: "message".to_string(),
                 })?;
@@ -279,43 +285,23 @@ impl TryFrom<(MessageType, serde_json::Value)> for Message {
     fn try_from(value: (MessageType, serde_json::Value)) -> Result<Self, Self::Error> {
         match value {
             (MessageType::ValidationFailure, value) => {
-                let failures: Failures = from_value(value).map_err(|_e| {
-                    Error::InvalidField {
-                        msg: "error parsing message as failures".to_string(),
-                    }
-                })?;
+                let failures: Failures = from_value(value)?;
                 Ok(Message::ValidationFailure(failures))
             }
             (MessageType::WorkAgency, value) => {
-                let work_agency: WorkAgency = from_value(value).map_err(|_e| {
-                    Error::InvalidField {
-                        msg: "error parsing message as work-agency".to_string(),
-                    }
-                })?;
+                let work_agency: WorkAgency = from_value(value)?;
                 Ok(Message::WorkAgency(work_agency))
             }
             (MessageType::Prefix, value) => {
-                let prefix: Prefix = from_value(value).map_err(|_e| {
-                    Error::InvalidField {
-                        msg: "error parsing message as prefix".to_string(),
-                    }
-                })?;
+                let prefix: Prefix = from_value(value)?;
                 Ok(Message::Prefix(prefix))
             }
             (MessageType::Type, value) => {
-                let type_: CrossrefType = from_value(value).map_err(|_e| {
-                    Error::InvalidField {
-                        msg: "error parsing message as type".to_string(),
-                    }
-                })?;
+                let type_: CrossrefType = from_value(value)?;
                 Ok(Message::Type(type_))
             }
             (MessageType::TypeList, value) => {
-                let type_list: TypeList = from_value(value).map_err(|_e| {
-                    Error::InvalidField {
-                        msg: "error parsing message as type-list".to_string(),
-                    }
-                })?;
+                let type_list: TypeList = from_value(value)?;
                 Ok(Message::TypeList(type_list))
             }
             (MessageType::Work, value) => {
@@ -323,27 +309,15 @@ impl TryFrom<(MessageType, serde_json::Value)> for Message {
                 Ok(Message::Work(Box::new(work)))
             }
             (MessageType::WorkList, value) => {
-                let list_resp = WorkList::try_from(value).map_err(|_e| {
-                    Error::InvalidField {
-                        msg: "error parsing message as work-list".to_string(),
-                    }
-                })?;
+                let list_resp = WorkList::try_from(value)?;
                 Ok(Message::WorkList(list_resp))
             }
             (MessageType::Member, value) => {
-                let member: Member = from_value(value).map_err(|_e| {
-                    Error::InvalidField {
-                        msg: "error parsing message as member".to_string(),
-                    }
-                })?;
+                let member: Member = from_value(value)?;
                 Ok(Message::Member(Box::new(member)))
             }
             (MessageType::MemberList, value) => {
-                let list_resp: MemberList = from_value(value).map_err(|_e| {
-                    Error::InvalidField {
-                        msg: "error parsing message as member-list".to_string(),
-                    }
-                })?;
+                let list_resp: MemberList = from_value(value)?;
                 Ok(Message::MemberList(list_resp))
             }
             (MessageType::Journal, value) => {
@@ -351,28 +325,16 @@ impl TryFrom<(MessageType, serde_json::Value)> for Message {
                 Ok(Message::Journal(Box::new(journal)))
             }
             (MessageType::JournalList, value) => {
-                let list_resp = JournalList::try_from(value).map_err(|e| {
-                    Error::InvalidField {
-                        msg: format!("Error parsing journal-list: {}", e),
-                    }
-                })?;
+                let list_resp = JournalList::try_from(value)?;
                 Ok(Message::JournalList(list_resp))
                 
             }
             (MessageType::Funder, value) => {
-                let funder: Funder = from_value(value).map_err(|_e| {
-                    Error::InvalidField {
-                        msg: "error parsing message as funder".to_string(),
-                    }
-                })?;
+                let funder: Funder = from_value(value)?;
                 Ok(Message::Funder(Box::new(funder)))
             }
             (MessageType::FunderList, value) => {
-                let list_resp: FunderList = from_value(value).map_err(|_e| {
-                    Error::InvalidField {
-                        msg: "error parsing message as funder-list".to_string(),
-                    }
-                })?;
+                let list_resp: FunderList = from_value(value)?;
                 Ok(Message::FunderList(list_resp))
             }
             (MessageType::RouteNotFound, _) => Ok(Message::RouteNotFound),

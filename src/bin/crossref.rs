@@ -1,7 +1,7 @@
 use clap::{Args, Parser, Subcommand};
 use crossref_client::{
-    AsyncIterator, Crossref, FundersQuery, MembersQuery, Order, ResultControl, Sort, Type,
-    JournalResultControl, WorkResultControl, WorksQuery,
+    AsyncIterator, Crossref, FundersQuery, JournalsQuery, MembersQuery, Order, ResultControl, Sort,
+    Type, WorkResultControl, WorksQuery,
 };
 
 use std::{fs, io::Write, path::PathBuf};
@@ -170,12 +170,19 @@ impl Opts {
     ///
     /// `sample` wins over everything, then rows+offset, then each on its own.
     fn result_control(&self) -> Option<ResultControl> {
-        match (self.sample, self.limit, self.offset) {
-            (Some(sample), ..) => Some(ResultControl::Sample(sample)),
-            (None, Some(rows), Some(offset)) => Some(ResultControl::RowsOffset { rows, offset }),
-            (None, Some(rows), None) => Some(ResultControl::Rows(rows)),
-            (None, None, Some(offset)) => Some(ResultControl::Offset(offset)),
-            (None, None, None) => None,
+        match self.sample {
+            Some(sample) => Some(ResultControl::Sample(sample)),
+            None => self.paging(),
+        }
+    }
+
+    /// The paging flags on their own, for routes that reject `sample`.
+    fn paging(&self) -> Option<ResultControl> {
+        match (self.limit, self.offset) {
+            (Some(rows), Some(offset)) => Some(ResultControl::RowsOffset { rows, offset }),
+            (Some(rows), None) => Some(ResultControl::Rows(rows)),
+            (None, Some(offset)) => Some(ResultControl::Offset(offset)),
+            (None, None) => None,
         }
     }
 }
@@ -215,15 +222,12 @@ impl Command {
             Command::Journals { id, opts } => match id {
                 Some(id) => serde_json::to_writer_pretty(writer, &client.journal(id).await?)?,
                 None => {
-                    let control = JournalResultControl {
-                        limit: opts.limit,
-                        offset: opts.offset,
-                        sample: None,
-                        sort: opts.sort.map(|s| s.as_str().to_string()),
+                    // `/journals` supports neither sort nor sample, so those flags are ignored here
+                    let query = JournalsQuery {
+                        queries: opts.query_terms.clone(),
+                        result_control: opts.paging(),
                     };
-                    let journals = client
-                        .journals(opts.query_terms.join(" "), Some(control))
-                        .await?;
+                    let journals = client.journals(query).await?;
                     serde_json::to_writer_pretty(writer, &journals)?
                 }
             },
@@ -282,7 +286,7 @@ impl Command {
                     let mut pages = client.deep_page(query);
                     let mut works = Vec::new();
                     while let Some(page) = pages.next().await {
-                        works.extend(page.items);
+                        works.extend(page?.items);
                     }
                     serde_json::to_writer_pretty(writer, &works)?
                 } else {

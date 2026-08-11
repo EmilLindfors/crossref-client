@@ -1,10 +1,9 @@
 #[cfg(test)]
 mod tests {
-    use crossref_client::query::journals::JournalResultControl;
     use crossref_client::query::ResultControl;
     use crossref_client::{
-        Crossref, CrossrefBuilder, FieldQuery, Type, WorkResultControl, WorksFilter,
-        WorksIdentQuery, WorksQuery,
+        Crossref, CrossrefBuilder, FieldQuery, JournalsQuery, Type, WorkElement, WorkResultControl,
+        WorksFilter, WorksIdentQuery, WorksQuery,
     };
 
     /// Contact address sent to crossref so these tests run in the polite pool
@@ -110,11 +109,31 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn selected_elements_narrow_the_response() {
+        let (client, _turn) = client().await;
+        let response = client
+            .works(
+                WorksQuery::empty()
+                    .elements(vec![WorkElement::DOI, WorkElement::Title])
+                    .result_control(WorkResultControl::Standard(ResultControl::Rows(5))),
+            )
+            .await;
+        println!("{:?}", response);
+        let works = response.expect("a `select` response has none of the fields `Work` used to require");
+        assert_eq!(5, works.items.len());
+        for work in &works.items {
+            assert!(!work.doi.is_empty());
+            // everything that was not selected comes back empty
+            assert_eq!(None, work.created);
+            assert_eq!(None, work.publisher);
+        }
+    }
+
+    #[tokio::test]
     async fn journal_query() {
         let (client, _turn) = client().await;
-        let control = Some(JournalResultControl::new_from_limit(10));
         let response = client
-            .journals("Economic Geography".to_string(), control)
+            .journals(JournalsQuery::new("Economic Geography").result_control(ResultControl::Rows(10)))
             .await;
         println!("{:?}", response);
         assert!(response.is_ok());

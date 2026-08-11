@@ -62,13 +62,9 @@ impl CrossrefRoute for Members {
     fn route(&self) -> Result<String> {
         match self {
             Members::Identifier(s) => Ok(format!("{}/{}", Component::Members.route()?, s)),
+            // `route` already carries its own `?` and is empty for an empty query
             Members::Query(query) => {
-                let query = query.route()?;
-                if query.is_empty() {
-                    Component::Members.route()
-                } else {
-                    Ok(format!("{}?{}", Component::Members.route()?, query))
-                }
+                Ok(format!("{}{}", Component::Members.route()?, query.route()?))
             }
             Members::Works(combined) => Self::combined_route(combined),
         }

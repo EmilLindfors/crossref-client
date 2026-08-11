@@ -1,0 +1,2383 @@
+{
+ "assertion_explanation_object": {
+  "DOI": "10.18857/jkpt.2019.31.2.67",
+  "ISSN": [
+   "1229-0475",
+   "2287-156X"
+  ],
+  "URL": "https://doi.org/10.18857/jkpt.2019.31.2.67",
+  "alternative-id": [
+   "10.18857/jkpt.2019.31.2.67"
+  ],
+  "assertion": [
+   {
+    "URL": "http://www.kptjournal.org/journal/view.html?doi=10.18857/jkpt.2019.31.2.67",
+    "group": {
+     "label": "Full text available at:",
+     "name": "multiple_resolution"
+    },
+    "label": "J Kor Phys Ther",
+    "name": "the_journal",
+    "value": "http://www.kptjournal.org/journal/view.html?doi=10.18857/jkpt.2019.31.2.67"
+   },
+   {
+    "group": {
+     "label": "Publication History",
+     "name": "publication_history"
+    },
+    "label": "Received",
+    "name": "received",
+    "order": 0,
+    "value": "2019-01-09"
+   },
+   {
+    "group": {
+     "label": "Publication History",
+     "name": "publication_history"
+    },
+    "label": "Revised",
+    "name": "revised",
+    "order": 1,
+    "value": "2019-04-19"
+   },
+   {
+    "group": {
+     "label": "Publication History",
+     "name": "publication_history"
+    },
+    "label": "Accepted",
+    "name": "accepted",
+    "order": 2,
+    "value": "2019-04-22"
+   },
+   {
+    "group": {
+     "label": "Publication History",
+     "name": "publication_history"
+    },
+    "label": "Published",
+    "name": "published",
+    "order": 3,
+    "value": "2019-04-30"
+   },
+   {
+    "group": {
+     "label": "Copyright and Licensing",
+     "name": "Copyright_and_licensing"
+    },
+    "label": "Copyright",
+    "name": "copyright",
+    "value": "\u00a9 2019 The Korea Society of Physical Therapy"
+   },
+   {
+    "explanation": {
+     "URL": "Http://creativecommons.org/license/by-nc/4.0."
+    },
+    "group": {
+     "label": "Copyright and Licensing",
+     "name": "Copyright_and_licensing"
+    },
+    "label": "License",
+    "name": "license",
+    "value": "This is an Open Access article distribute under the terms of the Creative Commons Attribution Non-commercial License (Http://creativecommons.org/license/by-nc/4.0.) which permits unrestricted non-commercial use, distribution,and reproduction in any medium, provided the original work is properly cited."
+   }
+  ],
+  "author": [
+   {
+    "affiliation": [
+     {
+      "name": "Department of Physical Therapy, College of Health Science, Honam University, Gwangju, Korea"
+     }
+    ],
+    "family": "Song",
+    "given": "YoHan",
+    "role": [
+     {
+      "role": "author",
+      "vocabulary": "crossref"
+     }
+    ],
+    "sequence": "first"
+   },
+   {
+    "affiliation": [
+     {
+      "name": "Department of Physical Therapy, College of Health Science, Honam University, Gwangju, Korea"
+     }
+    ],
+    "family": "Kim",
+    "given": "JinCheol",
+    "role": [
+     {
+      "role": "author",
+      "vocabulary": "crossref"
+     }
+    ],
+    "sequence": "additional"
+   },
+   {
+    "affiliation": [
+     {
+      "name": "Department of Physical Therapy, College of Health Science, Honam University, Gwangju, Korea"
+     }
+    ],
+    "family": "Lee",
+    "given": "JeongA",
+    "role": [
+     {
+      "role": "author",
+      "vocabulary": "crossref"
+     }
+    ],
+    "sequence": "additional"
+   },
+   {
+    "affiliation": [
+     {
+      "name": "Department of Physical Therapy, College of Health Science, Honam University, Gwangju, Korea"
+     }
+    ],
+    "family": "Han",
+    "given": "Shin",
+    "role": [
+     {
+      "role": "author",
+      "vocabulary": "crossref"
+     }
+    ],
+    "sequence": "additional"
+   },
+   {
+    "affiliation": [
+     {
+      "name": "Department of Physical Therapy, College of Health Science, Honam University, Gwangju, Korea"
+     }
+    ],
+    "family": "Lim",
+    "given": "YoonGyung",
+    "role": [
+     {
+      "role": "author",
+      "vocabulary": "crossref"
+     }
+    ],
+    "sequence": "additional"
+   },
+   {
+    "affiliation": [
+     {
+      "name": "Department of Physical Therapy, College of Health Science, Honam University, Gwangju, Korea"
+     }
+    ],
+    "family": "Lee",
+    "given": "HyunMin",
+    "role": [
+     {
+      "role": "author",
+      "vocabulary": "crossref"
+     }
+    ],
+    "sequence": "additional"
+   }
+  ],
+  "container-title": [
+   "The Journal of Korean Physical Therapy"
+  ],
+  "content-domain": {
+   "crossmark-restriction": true,
+   "domain": [
+    "www.kptjournal.org"
+   ]
+  },
+  "created": {
+   "date-parts": [
+    [
+     2019,
+     5,
+     15
+    ]
+   ],
+   "date-time": "2019-05-15T05:04:08Z",
+   "timestamp": 1557896648000
+  },
+  "deposited": {
+   "date-parts": [
+    [
+     2019,
+     6,
+     3
+    ]
+   ],
+   "date-time": "2019-06-03T21:14:58Z",
+   "timestamp": 1559596498000
+  },
+  "funder": [
+   {
+    "DOI": "10.13039/501100003665",
+    "award": [
+     "No. ITAC1606170-110070001000200200"
+    ],
+    "award-info": [
+     {
+      "award-number": [
+       "No. ITAC1606170-110070001000200200"
+      ]
+     }
+    ],
+    "doi-asserted-by": "publisher",
+    "id": [
+     {
+      "asserted-by": "publisher",
+      "id": "10.13039/501100003665",
+      "id-type": "DOI"
+     }
+    ],
+    "name": "National IT Industry Promotion Agency"
+   }
+  ],
+  "indexed": {
+   "date-parts": [
+    [
+     2022,
+     12,
+     15
+    ]
+   ],
+   "date-time": "2022-12-15T08:53:53Z",
+   "timestamp": 1671094433446
+  },
+  "is-referenced-by-count": 2,
+  "issn-type": [
+   {
+    "type": "print",
+    "value": "1229-0475"
+   },
+   {
+    "type": "electronic",
+    "value": "2287-156X"
+   }
+  ],
+  "issue": "2",
+  "issued": {
+   "date-parts": [
+    [
+     2019,
+     4,
+     30
+    ]
+   ]
+  },
+  "journal-issue": {
+   "issue": "2",
+   "published-print": {
+    "date-parts": [
+     [
+      2019,
+      4,
+      30
+     ]
+    ]
+   }
+  },
+  "language": "en",
+  "license": [
+   {
+    "URL": "Http://creativecommons.org/license/by-nc/4.0.",
+    "content-version": "tdm",
+    "delay-in-days": 0,
+    "start": {
+     "date-parts": [
+      [
+       2019,
+       4,
+       30
+      ]
+     ],
+     "date-time": "2019-04-30T00:00:00Z",
+     "timestamp": 1556582400000
+    }
+   }
+  ],
+  "link": [
+   {
+    "URL": "http://pdf.medrang.co.kr/JKPT/2019/031/JKPT031-02-01.pdf",
+    "content-type": "unspecified",
+    "content-version": "tdm",
+    "intended-application": "text-mining"
+   }
+  ],
+  "member": "8057",
+  "page": "67-75",
+  "prefix": "10.18857",
+  "published": {
+   "date-parts": [
+    [
+     2019,
+     4,
+     30
+    ]
+   ]
+  },
+  "published-print": {
+   "date-parts": [
+    [
+     2019,
+     4,
+     30
+    ]
+   ]
+  },
+  "publisher": "The Korean Society of Physical Therapy",
+  "reference": [
+   {
+    "DOI": "10.5014/ajot.56.5.489",
+    "doi-asserted-by": "publisher",
+    "key": "ref1"
+   },
+   {
+    "key": "ref2",
+    "unstructured": "Gordon WA, Hibbard MR, Egelko S et al. Perceptual remediation in patients with right brain damage: A comprehensive program. Arch Phys Med Rehabil 1985;66(6):353-9."
+   },
+   {
+    "DOI": "10.1161/01.STR.29.4.785",
+    "doi-asserted-by": "publisher",
+    "key": "ref3"
+   },
+   {
+    "DOI": "10.1161/hs1101.098154",
+    "doi-asserted-by": "publisher",
+    "key": "ref4"
+   },
+   {
+    "DOI": "10.21184/jkeia.2015.06.9.2.363",
+    "doi-asserted-by": "publisher",
+    "key": "ref5"
+   },
+   {
+    "DOI": "10.1037//0096-1523.16.2.248",
+    "doi-asserted-by": "publisher",
+    "key": "ref6"
+   },
+   {
+    "key": "ref7",
+    "unstructured": "Shumway-Cook A, Woollacott M. Aging and postural control. motor control: theory and practical applications. 2nd. Baltimore, Williams & Wilkins, 2001:222-247."
+   },
+   {
+    "DOI": "10.13066/kspm.2017.12.1.121",
+    "doi-asserted-by": "publisher",
+    "key": "ref8"
+   },
+   {
+    "DOI": "10.1038/ncpneuro0709",
+    "doi-asserted-by": "publisher",
+    "key": "ref9"
+   },
+   {
+    "key": "ref10",
+    "unstructured": "Kim WJ, Chang MY, Kwon HC et al. Developing a model for the establishment of criteria concerning korean style activities of daily living training rooms in the field of occupational therapy. The journal of Korean society of occupational therapy 2010;18(2):63-77."
+   },
+   {
+    "key": "ref11",
+    "unstructured": "Deutsch JE, Merians AS, Adamovich S et al. Development and application of virtual reality technology to improve hand yse and gait of individuals post stroke. Restorative neurology and neuroscience 2004;22(3-5):371-86."
+   },
+   {
+    "DOI": "10.1080/09638280600960909",
+    "doi-asserted-by": "publisher",
+    "key": "ref12"
+   },
+   {
+    "DOI": "10.1097/00001199-199712000-00002",
+    "doi-asserted-by": "publisher",
+    "key": "ref13"
+   },
+   {
+    "DOI": "10.1111/j.1532-5415.2009.02654.x",
+    "doi-asserted-by": "publisher",
+    "key": "ref14"
+   },
+   {
+    "DOI": "10.5014/ajot.63.5.535",
+    "doi-asserted-by": "publisher",
+    "key": "ref15"
+   },
+   {
+    "DOI": "10.1097/PHM.0b013e3181b33350",
+    "doi-asserted-by": "publisher",
+    "key": "ref16"
+   },
+   {
+    "key": "ref17",
+    "unstructured": "Merians AS, Tunik E, Adamovich SV. Virtual reality to maximize function for hand and arm rehabilitation: exploration of neural mechanisms. Stud Health Technol Inform 2009;145:109-25."
+   },
+   {
+    "key": "ref18",
+    "unstructured": "Hiltunen M, Laukka M, Luomala J. Mobile user experience, Ediita, IT press, 2002."
+   },
+   {
+    "DOI": "10.21184/jkeia.2017.07.11.5.245",
+    "doi-asserted-by": "publisher",
+    "key": "ref19"
+   },
+   {
+    "DOI": "10.1145/1324892.1324915",
+    "doi-asserted-by": "publisher",
+    "key": "ref20"
+   }
+  ],
+  "reference-count": 20,
+  "references-count": 20,
+  "resource": {
+   "primary": {
+    "URL": "http://www.kptjournal.org/journal/view.html?doi=10.18857/jkpt.2019.31.2.67"
+   }
+  },
+  "score": 0.0,
+  "short-container-title": [
+   "J Kor Phys Ther"
+  ],
+  "source": "Crossref",
+  "title": [
+   "Development of Virtual Reality-based Visual Perception and Cognitive Rehabilitation Service"
+  ],
+  "type": "journal-article",
+  "update-policy": "http://dx.doi.org/10.18857/crossmark_policy",
+  "volume": "31"
+ },
+ "content_domain_without_restriction": {
+  "DOI": "10.1177/10732748261453116/v3/response1",
+  "URL": "https://doi.org/10.1177/10732748261453116/v3/response1",
+  "author": [
+   {
+    "affiliation": [],
+    "family": "Katie DiCola",
+    "role": [
+     {
+      "role": "author",
+      "vocabulary": "crossref"
+     }
+    ],
+    "sequence": "first"
+   },
+   {
+    "affiliation": [],
+    "family": "Rhea K. Khurana",
+    "role": [
+     {
+      "role": "author",
+      "vocabulary": "crossref"
+     }
+    ],
+    "sequence": "additional"
+   },
+   {
+    "affiliation": [],
+    "family": "Sabrina Alvarado",
+    "role": [
+     {
+      "role": "author",
+      "vocabulary": "crossref"
+     }
+    ],
+    "sequence": "additional"
+   },
+   {
+    "affiliation": [],
+    "family": "Gabriella Moya",
+    "role": [
+     {
+      "role": "author",
+      "vocabulary": "crossref"
+     }
+    ],
+    "sequence": "additional"
+   },
+   {
+    "affiliation": [],
+    "family": "Marcela Algave",
+    "role": [
+     {
+      "role": "author",
+      "vocabulary": "crossref"
+     }
+    ],
+    "sequence": "additional"
+   },
+   {
+    "affiliation": [],
+    "family": "Daniella Topol",
+    "role": [
+     {
+      "role": "author",
+      "vocabulary": "crossref"
+     }
+    ],
+    "sequence": "additional"
+   },
+   {
+    "affiliation": [],
+    "family": "Stephen Crespo",
+    "role": [
+     {
+      "role": "author",
+      "vocabulary": "crossref"
+     }
+    ],
+    "sequence": "additional"
+   },
+   {
+    "affiliation": [],
+    "family": "Kimberly Judon",
+    "role": [
+     {
+      "role": "author",
+      "vocabulary": "crossref"
+     }
+    ],
+    "sequence": "additional"
+   },
+   {
+    "affiliation": [],
+    "family": "Desiree Walker",
+    "role": [
+     {
+      "role": "author",
+      "vocabulary": "crossref"
+     }
+    ],
+    "sequence": "additional"
+   },
+   {
+    "affiliation": [],
+    "family": "Dara M. Steinberg",
+    "role": [
+     {
+      "role": "author",
+      "vocabulary": "crossref"
+     }
+    ],
+    "sequence": "additional"
+   },
+   {
+    "affiliation": [],
+    "family": "Melissa P. Beauchemin",
+    "role": [
+     {
+      "role": "author",
+      "vocabulary": "crossref"
+     }
+    ],
+    "sequence": "additional"
+   }
+  ],
+  "content-domain": {
+   "domain": []
+  },
+  "created": {
+   "date-parts": [
+    [
+     2026,
+     5,
+     30
+    ]
+   ],
+   "date-time": "2026-05-30T21:06:16Z",
+   "timestamp": 1780175176000
+  },
+  "deposited": {
+   "date-parts": [
+    [
+     2026,
+     5,
+     30
+    ]
+   ],
+   "date-time": "2026-05-30T21:06:16Z",
+   "timestamp": 1780175176000
+  },
+  "indexed": {
+   "date-parts": [
+    [
+     2026,
+     5,
+     30
+    ]
+   ],
+   "date-time": "2026-05-30T22:00:30Z",
+   "timestamp": 1780178430313,
+   "version": "3.54.0"
+  },
+  "is-referenced-by-count": 0,
+  "issued": {
+   "date-parts": [
+    [
+     2026,
+     4,
+     29
+    ]
+   ]
+  },
+  "member": "179",
+  "prefix": "10.1177",
+  "published": {
+   "date-parts": [
+    [
+     2026,
+     4,
+     29
+    ]
+   ]
+  },
+  "published-print": {
+   "date-parts": [
+    [
+     2026,
+     4,
+     29
+    ]
+   ]
+  },
+  "publisher": "SAGE Publications",
+  "reference-count": 0,
+  "references-count": 0,
+  "relation": {
+   "is-review-of": [
+    {
+     "asserted-by": "subject",
+     "id": "10.1177/10732748261453116",
+     "id-type": "doi"
+    }
+   ]
+  },
+  "resource": {
+   "primary": {
+    "URL": "https://www.webofscience.com/api/gateway/wos/peer-review/10.1177/10732748261453116"
+   }
+  },
+  "review": {
+   "revision-round": "3",
+   "running-number": "A1V3",
+   "stage": "pre-publication",
+   "type": "author-comment"
+  },
+  "score": 0.0,
+  "source": "Crossref",
+  "title": [
+   "Author response for \"Development of Educational Guidance Sessions For Adolescents and Young Adults with Cancer and Their Caregivers: A Component of the AYA-NAV Intervention\""
+  ],
+  "type": "peer-review"
+ },
+ "empty_affiliation": {
+  "DOI": "10.1075/tsl.126.06cha",
+  "ISBN": [
+   "9789027203434",
+   "9789027262301"
+  ],
+  "ISSN": [
+   "0167-7373"
+  ],
+  "URL": "https://doi.org/10.1075/tsl.126.06cha",
+  "abstract": "<jats:p>This paper describes, in synchrony, the use, form, and position of the linking devices with <jats:italic>ka</jats:italic> in coordinating phrases and clauses and in subordinate clauses. This study also explores the relation between the different occurrences of <jats:italic>ka</jats:italic> and investigates a diachronic common source<jats:italic>.</jats:italic> Taking into account such parameters as weight, cohesion, and variability (<jats:xref>Lehmann 2002</jats:xref>), I advance the hypothesis that there have been two routes of grammaticalization. These two routes include the free coordinator <jats:italic>ka</jats:italic> which has given rise to a dependent marker <jats:italic>-ka</jats:italic> that forms subordinators, and the subjunctive mood <jats:italic>-ka</jats:italic> which seems to be the grammaticalization of the assertive mood marker <jats:italic>-ka</jats:italic> used for speech-act participants.</jats:p>",
+  "archive": [
+   "Portico"
+  ],
+  "author": [
+   {
+    "affiliation": [
+     {},
+     {
+      "name": "CNRS (SEDYL/CELIA\u00a0\u2013 CEMCA"
+     },
+     {},
+     {},
+     {
+      "name": "CNRS (SEDYL/CELIA\u00a0\u2013 CEMCA"
+     },
+     {}
+    ],
+    "family": "Chamoreau",
+    "given": "Claudine",
+    "role": [
+     {
+      "role": "author",
+      "vocabulary": "crossref"
+     }
+    ],
+    "sequence": "first"
+   }
+  ],
+  "container-title": [
+   "Typological Studies in Language",
+   "Diverse Scenarios of Syntactic Complexity"
+  ],
+  "content-domain": {
+   "crossmark-restriction": false,
+   "domain": []
+  },
+  "created": {
+   "date-parts": [
+    [
+     2019,
+     6,
+     18
+    ]
+   ],
+   "date-time": "2019-06-18T10:44:35Z",
+   "timestamp": 1560854675000
+  },
+  "deposited": {
+   "date-parts": [
+    [
+     2024,
+     12,
+     10
+    ]
+   ],
+   "date-time": "2024-12-10T23:06:05Z",
+   "timestamp": 1733871965000
+  },
+  "indexed": {
+   "date-parts": [
+    [
+     2025,
+     7,
+     3
+    ]
+   ],
+   "date-time": "2025-07-03T16:04:25Z",
+   "timestamp": 1751558665401,
+   "version": "3.30.1"
+  },
+  "is-referenced-by-count": 1,
+  "isbn-type": [
+   {
+    "type": "print",
+    "value": "9789027203434"
+   },
+   {
+    "type": "electronic",
+    "value": "9789027262301"
+   }
+  ],
+  "issn-type": [
+   {
+    "type": "print",
+    "value": "0167-7373"
+   }
+  ],
+  "issued": {
+   "date-parts": [
+    [
+     2019,
+     6,
+     21
+    ]
+   ]
+  },
+  "language": "en",
+  "member": "1757",
+  "page": "139-166",
+  "prefix": "10.1075",
+  "published": {
+   "date-parts": [
+    [
+     2019,
+     6,
+     21
+    ]
+   ]
+  },
+  "published-online": {
+   "date-parts": [
+    [
+     2019,
+     6,
+     21
+    ]
+   ]
+  },
+  "published-print": {
+   "date-parts": [
+    [
+     2019,
+     7,
+     4
+    ]
+   ]
+  },
+  "publisher": "John Benjamins Publishing Company",
+  "publisher-location": "Amsterdam",
+  "reference": [
+   {
+    "DOI": "10.1163/19589514-028-01-900000003",
+    "article-title": "Coordination, subordination et co-jonction: Faits linguistiques et concepts",
+    "author": "Bril",
+    "doi-asserted-by": "crossref",
+    "first-page": "7",
+    "journal-title": "Faits de Langues",
+    "key": "CIT203",
+    "volume": "28",
+    "year": "2006"
+   },
+   {
+    "author": "Bybee",
+    "key": "CIT204",
+    "volume-title": "The Evolution of Grammar",
+    "year": "1994"
+   },
+   {
+    "article-title": "Variaciones de orden de constituyentes en p\u2019orh\u00e9pecha. Topicalizaci\u00f3n y focalizaci\u00f3n",
+    "author": "Capistr\u00e1n",
+    "first-page": "349",
+    "key": "CIT205",
+    "volume-title": "Del Cora al Maya Yucateco. Estudios ling\u00fc\u00edsticos sobre algunas lenguas ind\u00edgenas mexicanas",
+    "year": "2002"
+   },
+   {
+    "article-title": "Localizaci\u00f3n de espacios utilizando de\u00edcticos en purepecha",
+    "author": "Chamoreau",
+    "first-page": "531",
+    "key": "CIT206",
+    "volume-title": "VII Encuentro Internacional de Ling\u00fc\u00edstica en el Noreste",
+    "year": "2004"
+   },
+   {
+    "DOI": "10.1515/9783110199192.465",
+    "article-title": "Grammatical borrowing in Purepecha",
+    "author": "Chamoreau",
+    "doi-asserted-by": "crossref",
+    "first-page": "465",
+    "key": "CIT207",
+    "volume-title": "Grammatical Borrowing in Cross-Linguistic Perspective",
+    "year": "2007"
+   },
+   {
+    "author": "Chamoreau",
+    "key": "CIT208",
+    "volume-title": "Hablemos purepecha, Want\u00e9 juchari anapu",
+    "year": "2009"
+   },
+   {
+    "DOI": "10.1524/stuf.2012.0002",
+    "article-title": "Dialectology, typology, diachrony and contact linguistics. A multi-layered perspective in Purepecha",
+    "author": "Chamoreau",
+    "doi-asserted-by": "crossref",
+    "first-page": "6",
+    "issue": "1",
+    "journal-title": "Sprachtypologie und Universalienforschung (STUF\u00a0\u2013 Language Typology and Universals)",
+    "key": "CIT209",
+    "volume": "65",
+    "year": "2012"
+   },
+   {
+    "article-title": "Types of enclitic in Purepecha",
+    "author": "Chamoreau",
+    "first-page": "119",
+    "key": "CIT210",
+    "volume-title": "Patterns in Meso-American Morphology",
+    "year": "2014"
+   },
+   {
+    "DOI": "10.1075/tsl.113.05cha",
+    "article-title": "Non-finite chain-medial clauses in the continuum of finiteness in Purepecha",
+    "author": "Chamoreau",
+    "doi-asserted-by": "crossref",
+    "first-page": "83",
+    "key": "CIT211",
+    "volume-title": "Finiteness and Nominalization",
+    "year": "2016"
+   },
+   {
+    "DOI": "10.1093/oxfordhb/9780199683208.013.38",
+    "article-title": "Purepecha. A polysynthetic but predominantly dependent-marking language",
+    "author": "Chamoreau",
+    "doi-asserted-by": "crossref",
+    "first-page": "667",
+    "key": "CIT212",
+    "volume-title": "Handbook of Polysynthesis",
+    "year": "2017"
+   },
+   {
+    "author": "Cristofaro",
+    "key": "CIT213",
+    "volume-title": "Subordination",
+    "year": "2003"
+   },
+   {
+    "author": "Foley",
+    "key": "CIT214",
+    "volume-title": "Functional Syntax and Universal Grammar",
+    "year": "1984"
+   },
+   {
+    "author": "Friedrich",
+    "key": "CIT215",
+    "volume-title": "A Phonology of Tarascan",
+    "year": "1975"
+   },
+   {
+    "article-title": "From meaning to sound",
+    "author": "Friedrich",
+    "first-page": "56",
+    "key": "CIT216",
+    "volume-title": "Handbook of Middle American Indians",
+    "year": "1984"
+   },
+   {
+    "article-title": "The grammaticalization of coordinating interclausal connective",
+    "author": "Anna",
+    "first-page": "656",
+    "key": "CIT217",
+    "volume-title": "Handbook of Grammaticalization",
+    "year": "2011"
+   },
+   {
+    "author": "Gilberti",
+    "key": "CIT218",
+    "volume-title": "Arte de la lengua de Michuacan",
+    "year": "1987"
+   },
+   {
+    "author": "Giv\u00f3n",
+    "key": "CIT219",
+    "volume-title": "Syntax. Amsterdam: John Benjamins",
+    "year": "2001"
+   },
+   {
+    "DOI": "10.1017/CBO9780511620553",
+    "doi-asserted-by": "publisher",
+    "key": "CIT220"
+   },
+   {
+    "DOI": "10.1515/9783110884463-003",
+    "article-title": "The converb as a cross-linguistically valid category",
+    "author": "Haspelmath",
+    "doi-asserted-by": "crossref",
+    "first-page": "1",
+    "key": "CIT221",
+    "volume-title": "Converbs in Cross-Linguistic Perspective",
+    "year": "1995"
+   },
+   {
+    "DOI": "10.1017/CBO9780511619434.001",
+    "doi-asserted-by": "publisher",
+    "key": "CIT222"
+   },
+   {
+    "DOI": "10.1017/CBO9780511613463",
+    "doi-asserted-by": "publisher",
+    "key": "CIT223"
+   },
+   {
+    "DOI": "10.1093/oso/9780199227761.001.0001",
+    "author": "Heine",
+    "doi-asserted-by": "crossref",
+    "key": "CIT224",
+    "volume-title": "The Genesis of Grammar. A Reconstruction",
+    "year": "2007"
+   },
+   {
+    "author": "de Lagunas",
+    "key": "CIT225",
+    "volume-title": "Arte y Diccionario con otras obras en lengua Michuacana",
+    "year": "1983"
+   },
+   {
+    "author": "Lehmann",
+    "edition": "2",
+    "key": "CIT226",
+    "volume-title": "Thoughts on Grammaticalization",
+    "year": "2002"
+   },
+   {
+    "DOI": "10.1017/CBO9780511619434.007",
+    "doi-asserted-by": "publisher",
+    "key": "CIT227"
+   },
+   {
+    "DOI": "10.1515/ling.1998.36.2.281",
+    "doi-asserted-by": "publisher",
+    "key": "CIT228"
+   },
+   {
+    "DOI": "10.1515/9783110199192.31",
+    "doi-asserted-by": "publisher",
+    "key": "CIT229"
+   },
+   {
+    "author": "Juan",
+    "key": "CIT230",
+    "volume-title": "Dialogo sobre la naturaleza",
+    "year": "1998"
+   },
+   {
+    "author": "Monz\u00f3n",
+    "key": "CIT231",
+    "volume-title": "Los morfemas espaciales del p\u2019urh\u00e9pecha",
+    "year": "2004"
+   },
+   {
+    "article-title": "Mesoamerican calques",
+    "author": "Smith-Stark",
+    "first-page": "15",
+    "key": "CIT232",
+    "volume-title": "Investigaciones ling\u00fc\u00edsticas en Mesoam\u00e9rica",
+    "year": "1994"
+   },
+   {
+    "DOI": "10.1017/CBO9780511619434.005",
+    "doi-asserted-by": "publisher",
+    "key": "CIT233"
+   },
+   {
+    "author": "Wares",
+    "first-page": "93",
+    "key": "CIT234",
+    "volume-title": "Tarascan Verb Inflection",
+    "year": "1984"
+   }
+  ],
+  "reference-count": 32,
+  "references-count": 32,
+  "resource": {
+   "primary": {
+    "URL": "https://benjamins.com/catalog/tsl.126.06cha"
+   },
+   "secondary": [
+    {
+     "URL": "https://www.degruyter.com/document/doi/10.1075/tsl.126.06cha/html",
+     "label": "DeGruyter"
+    }
+   ]
+  },
+  "score": 0.0,
+  "source": "Crossref",
+  "title": [
+   "Grammaticalization of the linking devices with <i>ka</i> in Purepecha"
+  ],
+  "type": "book-chapter"
+ },
+ "funder_without_name": {
+  "DOI": "10.1101/2025.07.19.665657",
+  "URL": "https://doi.org/10.1101/2025.07.19.665657",
+  "abstract": "<jats:p>Time-resolved experiments can provide unique insights into dynamical processes such as protein folding, ligand binding, and many other molecular processes. These experiments are, however, difficult to interpret at the molecular level because they generally report on signals that are averaged over multiple configurational states, and because they often report on processes that are well beyond what can be studied using most simulation methods. Here we describe an approach to use molecular simulations to model and interpret time-resolved experiments. The method, which we term trBME (time-resolved Bayesian/Maximum Entropy), is based on combining a model for the dynamics of the system, with 3D structural models of the protein that can be compared to the experiments. We illustrate the utility of the model using synthetic time-resolved small-angle X-ray scattering data and show how it can be used to extract detailed information from the experimental data on the process of protein unfolding.</jats:p>",
+  "accepted": {
+   "date-parts": [
+    [
+     2025,
+     7,
+     22
+    ]
+   ]
+  },
+  "author": [
+   {
+    "ORCID": "https://orcid.org/0000-0003-0932-0601",
+    "affiliation": [],
+    "authenticated-orcid": false,
+    "family": "Henning Hansen",
+    "given": "Carl G.",
+    "role": [
+     {
+      "role": "author",
+      "vocabulary": "crossref"
+     }
+    ],
+    "sequence": "first"
+   },
+   {
+    "ORCID": "https://orcid.org/0000-0003-4917-1890",
+    "affiliation": [],
+    "authenticated-orcid": false,
+    "family": "Orioli",
+    "given": "Simone",
+    "role": [
+     {
+      "role": "author",
+      "vocabulary": "crossref"
+     }
+    ],
+    "sequence": "additional"
+   },
+   {
+    "ORCID": "https://orcid.org/0000-0002-4750-6039",
+    "affiliation": [],
+    "authenticated-orcid": false,
+    "family": "Lindorff-Larsen",
+    "given": "Kresten",
+    "role": [
+     {
+      "role": "author",
+      "vocabulary": "crossref"
+     }
+    ],
+    "sequence": "additional"
+   }
+  ],
+  "content-domain": {
+   "crossmark-restriction": false,
+   "domain": []
+  },
+  "created": {
+   "date-parts": [
+    [
+     2025,
+     7,
+     22
+    ]
+   ],
+   "date-time": "2025-07-22T18:50:17Z",
+   "timestamp": 1753210217000
+  },
+  "deposited": {
+   "date-parts": [
+    [
+     2026,
+     1,
+     15
+    ]
+   ],
+   "date-time": "2026-01-15T09:10:38Z",
+   "timestamp": 1768468238000
+  },
+  "funder": [
+   {
+    "DOI": "10.13039/501100004785",
+    "award": [
+     "81912"
+    ],
+    "award-info": [
+     {
+      "award-number": [
+       "81912"
+      ]
+     }
+    ],
+    "doi-asserted-by": "crossref",
+    "id": [
+     {
+      "asserted-by": "crossref",
+      "id": "10.13039/501100004785",
+      "id-type": "DOI"
+     }
+    ],
+    "name": "NordForsk"
+   },
+   {
+    "award": [
+     "R155-2015-2666"
+    ],
+    "award-info": [
+     {
+      "award-number": [
+       "R155-2015-2666"
+      ]
+     }
+    ],
+    "id": [
+     {
+      "asserted-by": "publisher",
+      "id": "https://ror.org/03hz8wd80",
+      "id-type": "ROR"
+     }
+    ]
+   },
+   {
+    "award": [
+     "101071843"
+    ],
+    "award-info": [
+     {
+      "award-number": [
+       "101071843"
+      ]
+     }
+    ],
+    "id": [
+     {
+      "asserted-by": "publisher",
+      "id": "https://ror.org/0472cxd90",
+      "id-type": "ROR"
+     }
+    ]
+   }
+  ],
+  "group-title": "Biophysics",
+  "indexed": {
+   "date-parts": [
+    [
+     2026,
+     7,
+     30
+    ]
+   ],
+   "date-time": "2026-07-30T14:13:05Z",
+   "timestamp": 1785420785800,
+   "version": "3.56.0"
+  },
+  "institution": [
+   {
+    "name": "bioRxiv"
+   }
+  ],
+  "is-referenced-by-count": 1,
+  "issued": {
+   "date-parts": [
+    [
+     2025,
+     7,
+     22
+    ]
+   ]
+  },
+  "license": [
+   {
+    "URL": "http://creativecommons.org/licenses/by-nc-nd/4.0/",
+    "content-version": "vor",
+    "delay-in-days": 0,
+    "start": {
+     "date-parts": [
+      [
+       2025,
+       7,
+       22
+      ]
+     ],
+     "date-time": "2025-07-22T00:00:00Z",
+     "timestamp": 1753142400000
+    }
+   }
+  ],
+  "link": [
+   {
+    "URL": "https://syndication.highwire.org/content/doi/10.1101/2025.07.19.665657",
+    "content-type": "unspecified",
+    "content-version": "vor",
+    "intended-application": "similarity-checking"
+   }
+  ],
+  "member": "54368",
+  "posted": {
+   "date-parts": [
+    [
+     2025,
+     7,
+     22
+    ]
+   ]
+  },
+  "prefix": "10.64898",
+  "published": {
+   "date-parts": [
+    [
+     2025,
+     7,
+     22
+    ]
+   ]
+  },
+  "publisher": "openRxiv",
+  "reference": [
+   {
+    "DOI": "10.1126/science.aat4010",
+    "doi-asserted-by": "publisher",
+    "key": "2025072414301895000_2025.07.19.665657v1.1"
+   },
+   {
+    "DOI": "10.1016/j.sbi.2016.12.004",
+    "doi-asserted-by": "publisher",
+    "key": "2025072414301895000_2025.07.19.665657v1.2"
+   },
+   {
+    "DOI": "10.1016/bs.pmbts.2019.12.006",
+    "article-title": "How to learn from inconsistencies: Integrating molecular simulations with experimental data",
+    "doi-asserted-by": "crossref",
+    "first-page": "123",
+    "journal-title": "Progress in molecular biology and translational science",
+    "key": "2025072414301895000_2025.07.19.665657v1.3",
+    "volume": "170",
+    "year": "2020"
+   },
+   {
+    "DOI": "10.1063/5.0045455",
+    "doi-asserted-by": "crossref",
+    "key": "2025072414301895000_2025.07.19.665657v1.4",
+    "unstructured": "C. L. Brooks III , D. A. Case , S. Plimpton , B. Roux , D. van der Spoel , and E. Tajkhorshid , Classical molecular dynamics (2021)."
+   },
+   {
+    "DOI": "10.1002/anie.201702945",
+    "article-title": "Validation of molecular simulation: an overview of issues",
+    "doi-asserted-by": "crossref",
+    "first-page": "884",
+    "journal-title": "Angewandte Chemie International Edition",
+    "key": "2025072414301895000_2025.07.19.665657v1.5",
+    "volume": "57",
+    "year": "2018"
+   },
+   {
+    "DOI": "10.1016/j.bbagen.2014.10.019",
+    "doi-asserted-by": "publisher",
+    "key": "2025072414301895000_2025.07.19.665657v1.6"
+   },
+   {
+    "DOI": "10.1073/pnas.1800690115",
+    "doi-asserted-by": "publisher",
+    "key": "2025072414301895000_2025.07.19.665657v1.7"
+   },
+   {
+    "DOI": "10.1016/j.sbi.2018.02.002",
+    "doi-asserted-by": "publisher",
+    "key": "2025072414301895000_2025.07.19.665657v1.8"
+   },
+   {
+    "DOI": "10.1093/nar/gkw1183",
+    "doi-asserted-by": "publisher",
+    "key": "2025072414301895000_2025.07.19.665657v1.9"
+   },
+   {
+    "DOI": "10.1063/1.4937786",
+    "doi-asserted-by": "publisher",
+    "key": "2025072414301895000_2025.07.19.665657v1.10"
+   },
+   {
+    "DOI": "10.1021/acs.jpclett.6b00885",
+    "article-title": "Multi-timescale dynamics in intrinsically disordered proteins from nmr relaxation and molecular simulation",
+    "doi-asserted-by": "crossref",
+    "first-page": "2483",
+    "journal-title": "The journal of physical chemistry letters",
+    "key": "2025072414301895000_2025.07.19.665657v1.11",
+    "volume": "7",
+    "year": "2016"
+   },
+   {
+    "DOI": "10.1126/sciadv.aax2348",
+    "doi-asserted-by": "publisher",
+    "key": "2025072414301895000_2025.07.19.665657v1.12"
+   },
+   {
+    "DOI": "10.1021/acs.jcim.9b00259",
+    "doi-asserted-by": "publisher",
+    "key": "2025072414301895000_2025.07.19.665657v1.13"
+   },
+   {
+    "DOI": "10.1101/2020.08.18.256024",
+    "doi-asserted-by": "crossref",
+    "key": "2025072414301895000_2025.07.19.665657v1.14",
+    "unstructured": "F. K\u00fcmmerer , S. Orioli , D. Harding-Larsen , F. Hoffmann , Y. Gavrilov , K. Teilum , and K. Lindorff-Larsen , Fitting side-chain nmr relaxation data using molecular simulations, bioRxiv (2020)."
+   },
+   {
+    "article-title": "Rescuing off-equilibrium simulation data through dynamic experimental data with dynammo",
+    "first-page": "045050",
+    "journal-title": "Machine Learning: Science and Technology",
+    "key": "2025072414301895000_2025.07.19.665657v1.15",
+    "volume": "4",
+    "year": "2023"
+   },
+   {
+    "DOI": "10.1016/j.str.2017.04.006",
+    "doi-asserted-by": "publisher",
+    "key": "2025072414301895000_2025.07.19.665657v1.16"
+   },
+   {
+    "DOI": "10.1038/s41592-018-0180-2",
+    "article-title": "The hit-and-return system enables efficient time-resolved serial synchrotron crystallography",
+    "doi-asserted-by": "crossref",
+    "first-page": "901",
+    "journal-title": "Nature methods",
+    "key": "2025072414301895000_2025.07.19.665657v1.17",
+    "volume": "15",
+    "year": "2018"
+   },
+   {
+    "DOI": "10.1126/science.aaw9904",
+    "doi-asserted-by": "publisher",
+    "key": "2025072414301895000_2025.07.19.665657v1.18"
+   },
+   {
+    "DOI": "10.1038/s41557-019-0329-3",
+    "article-title": "Temperature-jump solution x-ray scattering reveals distinct motions in a dynamic enzyme",
+    "doi-asserted-by": "crossref",
+    "first-page": "1058",
+    "journal-title": "Nature chemistry",
+    "key": "2025072414301895000_2025.07.19.665657v1.19",
+    "volume": "11",
+    "year": "2019"
+   },
+   {
+    "DOI": "10.1038/s41592-019-0553-1",
+    "article-title": "Liquid application method for time-resolved analyses by serial synchrotron crystallography",
+    "doi-asserted-by": "crossref",
+    "first-page": "979",
+    "journal-title": "Nature methods",
+    "key": "2025072414301895000_2025.07.19.665657v1.20",
+    "volume": "16",
+    "year": "2019"
+   },
+   {
+    "DOI": "10.1073/pnas.2012999117",
+    "doi-asserted-by": "publisher",
+    "key": "2025072414301895000_2025.07.19.665657v1.21"
+   },
+   {
+    "article-title": "Photoswitching mechanism of a fluorescent protein revealed by time-resolved crystallography and transient absorption spectroscopy",
+    "first-page": "1",
+    "journal-title": "Nature communications",
+    "key": "2025072414301895000_2025.07.19.665657v1.22",
+    "volume": "11",
+    "year": "2020"
+   },
+   {
+    "DOI": "10.1103/PhysRevLett.125.226001",
+    "article-title": "Observing the structural evolution in the photodissociation of diiodomethane with femtosecond solution x-ray scattering",
+    "doi-asserted-by": "crossref",
+    "first-page": "226001",
+    "journal-title": "Physical Review Letters",
+    "key": "2025072414301895000_2025.07.19.665657v1.23",
+    "volume": "125",
+    "year": "2020"
+   },
+   {
+    "DOI": "10.1063/4.0000013",
+    "article-title": "Real-time tracking of protein unfolding with time-resolved x-ray solution scattering",
+    "doi-asserted-by": "crossref",
+    "first-page": "054702",
+    "journal-title": "Structural Dynamics",
+    "key": "2025072414301895000_2025.07.19.665657v1.24",
+    "volume": "7",
+    "year": "2020"
+   },
+   {
+    "DOI": "10.1016/j.bpj.2020.06.015",
+    "article-title": "Observing protein degradation by the pan-20s proteasome by time-resolved neutron scattering",
+    "doi-asserted-by": "crossref",
+    "first-page": "375",
+    "journal-title": "Biophysical journal",
+    "key": "2025072414301895000_2025.07.19.665657v1.25",
+    "volume": "119",
+    "year": "2020"
+   },
+   {
+    "DOI": "10.1063/5.0217013",
+    "doi-asserted-by": "crossref",
+    "key": "2025072414301895000_2025.07.19.665657v1.26",
+    "unstructured": "A. K. Nijhawan , D. Leshchev , D. J. Hsu , A. M. Chan , D. Rimmerman , J. Hong , I. Kosheleva , R. Henning , K. L. Kohlstedt , and L. X. Chen , Unlocking the unfolded structure of ubiquitin: Combining time-resolved x-ray solution scattering and molecular dynamics to generate unfolded ensembles, The Journal of Chemical Physics 161 (2024)."
+   },
+   {
+    "DOI": "10.1002/cphc.202500049",
+    "doi-asserted-by": "crossref",
+    "key": "2025072414301895000_2025.07.19.665657v1.27",
+    "unstructured": "A. K. Nijhawan , A. M. Chan , M. B. Ho , C. Lee , I. Kosheleva , L. X. Chen , and K. L. Kohlstedt , Unfolding of the villin headpiece domain: Revealing structural heterogeneity with time-resolved x-ray solution scattering and markov state modeling, ChemPhysChem, 2500049 (2025)."
+   },
+   {
+    "DOI": "10.1016/S0022-2836(02)00997-X",
+    "doi-asserted-by": "publisher",
+    "key": "2025072414301895000_2025.07.19.665657v1.28"
+   },
+   {
+    "DOI": "10.1073/pnas.1201811109",
+    "doi-asserted-by": "publisher",
+    "key": "2025072414301895000_2025.07.19.665657v1.29"
+   },
+   {
+    "DOI": "10.1073/pnas.1306323110",
+    "doi-asserted-by": "publisher",
+    "key": "2025072414301895000_2025.07.19.665657v1.30"
+   },
+   {
+    "DOI": "10.1073/pnas.1707694114",
+    "doi-asserted-by": "publisher",
+    "key": "2025072414301895000_2025.07.19.665657v1.31"
+   },
+   {
+    "DOI": "10.1126/science.1187409",
+    "doi-asserted-by": "publisher",
+    "key": "2025072414301895000_2025.07.19.665657v1.32"
+   },
+   {
+    "DOI": "10.1146/annurev.pc.31.100180.003051",
+    "doi-asserted-by": "publisher",
+    "key": "2025072414301895000_2025.07.19.665657v1.33"
+   },
+   {
+    "DOI": "10.1063/1.5030339",
+    "article-title": "An implementation of the maximum-caliber principle by replica-averaged time-resolved restrained simulations",
+    "doi-asserted-by": "crossref",
+    "first-page": "184114",
+    "journal-title": "The Journal of chemical physics",
+    "key": "2025072414301895000_2025.07.19.665657v1.34",
+    "volume": "148",
+    "year": "2018"
+   },
+   {
+    "DOI": "10.1063/5.0042972",
+    "doi-asserted-by": "crossref",
+    "key": "2025072414301895000_2025.07.19.665657v1.35",
+    "unstructured": "M. Bause and T. Bereau , Reweighting non-equilibrium steady-state dynamics along collective variables, arXiv preprint arXiv:2101.02004 (2021)."
+   },
+   {
+    "DOI": "10.1073/pnas.2012423118",
+    "doi-asserted-by": "crossref",
+    "key": "2025072414301895000_2025.07.19.665657v1.36",
+    "unstructured": "Z. F. Brotzakis , M. Vendruscolo , and P. G. Bolhuis , A method of incorporating rate constants as kinetic constraints in molecular dynamics simulations, Proceedings of the National Academy of Sciences 118 (2021)."
+   },
+   {
+    "DOI": "10.1016/j.str.2010.10.006",
+    "doi-asserted-by": "publisher",
+    "key": "2025072414301895000_2025.07.19.665657v1.37"
+   },
+   {
+    "DOI": "10.1007/978-1-0716-0270-6_15",
+    "doi-asserted-by": "crossref",
+    "key": "2025072414301895000_2025.07.19.665657v1.38",
+    "unstructured": "S. Bottaro , T. Bengtsen , and K. Lindorff-Larsen , Integrating molecular simulation and experimental data: a bayesian/maximum entropy reweighting approach, in Structural Bioinformatics (Springer, 2020) pp. 219\u2013240."
+   },
+   {
+    "DOI": "10.1016/0021-9991(77)90121-8",
+    "doi-asserted-by": "publisher",
+    "key": "2025072414301895000_2025.07.19.665657v1.39"
+   },
+   {
+    "DOI": "10.1063/1.4979344",
+    "doi-asserted-by": "publisher",
+    "key": "2025072414301895000_2025.07.19.665657v1.40"
+   },
+   {
+    "DOI": "10.1103/PhysRev.106.620",
+    "doi-asserted-by": "publisher",
+    "key": "2025072414301895000_2025.07.19.665657v1.41"
+   },
+   {
+    "DOI": "10.1038/nature03199",
+    "doi-asserted-by": "publisher",
+    "key": "2025072414301895000_2025.07.19.665657v1.42"
+   },
+   {
+    "DOI": "10.1126/sciadv.aar8521",
+    "doi-asserted-by": "publisher",
+    "key": "2025072414301895000_2025.07.19.665657v1.43"
+   },
+   {
+    "article-title": "Bayesian ensemble refinement by replica simulations and reweighting",
+    "first-page": "12",
+    "journal-title": "The Journal of chemical physics",
+    "key": "2025072414301895000_2025.07.19.665657v1.44",
+    "volume": "143",
+    "year": "2015"
+   },
+   {
+    "DOI": "10.1107/S1600576718008956",
+    "article-title": "Analysis of small-angle scattering data using model fitting and bayesian regularization",
+    "doi-asserted-by": "crossref",
+    "first-page": "1151",
+    "journal-title": "Journal of Applied Crystallography",
+    "key": "2025072414301895000_2025.07.19.665657v1.45",
+    "volume": "51",
+    "year": "2018"
+   },
+   {
+    "DOI": "10.1021/acs.jctc.8b01231",
+    "article-title": "Efficient ensemble refinement by reweighting",
+    "doi-asserted-by": "crossref",
+    "first-page": "3390",
+    "journal-title": "Journal of chemical theory and computation",
+    "key": "2025072414301895000_2025.07.19.665657v1.46",
+    "volume": "15",
+    "year": "2019"
+   },
+   {
+    "DOI": "10.1021/acs.jctc.9b00206",
+    "doi-asserted-by": "crossref",
+    "key": "2025072414301895000_2025.07.19.665657v1.47",
+    "unstructured": "A. Cesari , S. Bottaro , K. Lindorff-Larsen , P. Ban\u00e1\u0161 , J. Sponer , and G. Bussi , Fitting corrections to an rna force field using experimental data, Journal of Chemical Theory and Computation (2019)."
+   },
+   {
+    "DOI": "10.1021/acs.jctc.9b00292",
+    "article-title": "Combined small-angle x-ray and neutron scattering restraints in molecular dynamics simulations",
+    "doi-asserted-by": "crossref",
+    "first-page": "4687",
+    "journal-title": "Journal of chemical theory and computation",
+    "key": "2025072414301895000_2025.07.19.665657v1.48",
+    "volume": "15",
+    "year": "2019"
+   },
+   {
+    "DOI": "10.3390/e21090898",
+    "article-title": "Bayesian-maximum-entropy reweighting of idp ensembles based on nmr chemical shifts",
+    "doi-asserted-by": "crossref",
+    "first-page": "898",
+    "journal-title": "Entropy",
+    "key": "2025072414301895000_2025.07.19.665657v1.49",
+    "volume": "21",
+    "year": "2019"
+   },
+   {
+    "DOI": "10.1101/2024.10.04.616700",
+    "doi-asserted-by": "publisher",
+    "key": "2025072414301895000_2025.07.19.665657v1.50"
+   },
+   {
+    "DOI": "10.1038/s43586-020-00001-2",
+    "doi-asserted-by": "publisher",
+    "key": "2025072414301895000_2025.07.19.665657v1.51"
+   },
+   {
+    "DOI": "10.1016/B978-044452965-7/50006-4",
+    "doi-asserted-by": "crossref",
+    "key": "2025072414301895000_2025.07.19.665657v1.52",
+    "unstructured": "N. van Kampen , Stochastic Processes in Physics and Chemistry 3rd. Ed. (Elsevier, Amsterdam,2007)."
+   },
+   {
+    "DOI": "10.1088/1367-2630/7/1/034",
+    "article-title": "Position-dependent diffusion coefficients and free energies from bayesian analysis of equilibrium and replica molecular dynamics simulations",
+    "doi-asserted-by": "crossref",
+    "first-page": "34",
+    "journal-title": "New Journal of Physics",
+    "key": "2025072414301895000_2025.07.19.665657v1.53",
+    "volume": "7",
+    "year": "2005"
+   },
+   {
+    "DOI": "10.1021/acs.jctc.8b00835",
+    "doi-asserted-by": "publisher",
+    "key": "2025072414301895000_2025.07.19.665657v1.54"
+   },
+   {
+    "DOI": "10.1021/acs.jctc.2c00324",
+    "doi-asserted-by": "publisher",
+    "key": "2025072414301895000_2025.07.19.665657v1.55"
+   },
+   {
+    "DOI": "10.1038/s42254-020-0153-0",
+    "doi-asserted-by": "publisher",
+    "key": "2025072414301895000_2025.07.19.665657v1.56"
+   },
+   {
+    "DOI": "10.1002/wcms.66",
+    "doi-asserted-by": "publisher",
+    "key": "2025072414301895000_2025.07.19.665657v1.57"
+   },
+   {
+    "DOI": "10.1039/b509983h",
+    "doi-asserted-by": "publisher",
+    "key": "2025072414301895000_2025.07.19.665657v1.58"
+   },
+   {
+    "DOI": "10.1107/S2059798317005745",
+    "doi-asserted-by": "publisher",
+    "key": "2025072414301895000_2025.07.19.665657v1.59"
+   },
+   {
+    "DOI": "10.1002/prot.22511",
+    "article-title": "Robustness and generalization of structure-based models for protein folding and function",
+    "doi-asserted-by": "crossref",
+    "first-page": "881",
+    "journal-title": "Proteins: Structure, Function, and Bioinformatics",
+    "key": "2025072414301895000_2025.07.19.665657v1.60",
+    "volume": "77",
+    "year": "2009"
+   },
+   {
+    "DOI": "10.1371/journal.pcbi.1004794",
+    "article-title": "Smog 2: a versatile software package for generating structure-based models",
+    "doi-asserted-by": "crossref",
+    "first-page": "e1004794",
+    "journal-title": "PLoS computational biology",
+    "key": "2025072414301895000_2025.07.19.665657v1.61",
+    "volume": "12",
+    "year": "2016"
+   },
+   {
+    "DOI": "10.1021/jp300852d",
+    "article-title": "The shadow map: a general contact definition for capturing the dynamics of biomolecular folding and function",
+    "doi-asserted-by": "crossref",
+    "first-page": "8692",
+    "journal-title": "The Journal of Physical Chemistry B",
+    "key": "2025072414301895000_2025.07.19.665657v1.62",
+    "volume": "116",
+    "year": "2012"
+   },
+   {
+    "DOI": "10.1107/S0907444912027047",
+    "doi-asserted-by": "publisher",
+    "key": "2025072414301895000_2025.07.19.665657v1.63"
+   },
+   {
+    "DOI": "10.1002/jcc.20906",
+    "doi-asserted-by": "publisher",
+    "key": "2025072414301895000_2025.07.19.665657v1.64"
+   },
+   {
+    "DOI": "10.1107/S1600576718014462",
+    "article-title": "Size-exclusion chromatography small-angle x-ray scattering of water soluble proteins on a laboratory instrument",
+    "doi-asserted-by": "crossref",
+    "first-page": "1623",
+    "journal-title": "Journal of applied crystallography",
+    "key": "2025072414301895000_2025.07.19.665657v1.65",
+    "volume": "51",
+    "year": "2018"
+   },
+   {
+    "DOI": "10.1073/pnas.1311599110",
+    "doi-asserted-by": "publisher",
+    "key": "2025072414301895000_2025.07.19.665657v1.66"
+   },
+   {
+    "DOI": "10.1063/1.457480",
+    "doi-asserted-by": "publisher",
+    "key": "2025072414301895000_2025.07.19.665657v1.67"
+   },
+   {
+    "DOI": "10.1103/PhysRevE.99.032117",
+    "article-title": "Physically consistent numerical solver for time-dependent fokker-planck equations",
+    "doi-asserted-by": "crossref",
+    "first-page": "032117",
+    "journal-title": "Physical Review E",
+    "key": "2025072414301895000_2025.07.19.665657v1.68",
+    "volume": "99",
+    "year": "2019"
+   },
+   {
+    "DOI": "10.1109/ICDCSW.2011.20",
+    "doi-asserted-by": "crossref",
+    "key": "2025072414301895000_2025.07.19.665657v1.69",
+    "unstructured": "V. Satopaa , J. Albrecht , D. Irwin , and B. Raghavan , Finding a \u201ckneedle\u201d in a haystack: Detecting knee points in system behavior, in 2011 31st International Conference on Distributed Computing Systems Workshops (2011) pp. 166\u2013171."
+   }
+  ],
+  "reference-count": 69,
+  "references-count": 69,
+  "resource": {
+   "primary": {
+    "URL": "http://biorxiv.org/lookup/doi/10.1101/2025.07.19.665657"
+   }
+  },
+  "score": 0.0,
+  "source": "Crossref",
+  "subtype": "preprint",
+  "title": [
+   "A Bayesian approach to interpret time-resolved experiments using molecular simulations"
+  ],
+  "type": "posted-content"
+ },
+ "license_without_start": {
+  "DOI": "10.26686/wgtn.16992955",
+  "URL": "https://doi.org/10.26686/wgtn.16992955",
+  "abstract": "<jats:p>&lt;p&gt;A confluence of factors including population growth, climate change,\u00a0resource constraints and legacy effects poses significant challenges to the\u00a0sustainability of cities worldwide. With the deep complexity inherent in\u00a0socio-ecological systems, 'solutions' sometimes shift the problem in\u00a0space or time or drive the system in the opposite direction than intended.\u00a0A case study into climate change adaptation and community resilience in\u00a0the context of urban water management was undertaken in Wellington,\u00a0New Zealand, using a 'post normal' science approach. Climate change\u00a0and water demand scenarios for 2040 and 2090 were analysed using\u00a0Greater Wellington Water\u2019s 'sustainable yield' model and downscaled\u00a0general circulation climate model data. Semi-structured interviews and a\u00a0systems modelling workshop were conducted in order to gain an\u00a0understanding of the local context for adaptation, resilience and response\u00a0option selection. With a 20% reduction of aggregate per capita demand\u00a0and greater storage capacity, Wellington has sufficient water from\u00a0current sources to smooth increased flow variability due to climate\u00a0change and to meet increased demand from the projected increase in\u00a0population. Adaptation pathways and the potential for 'maladaptation' is\u00a0explored and an integrated framework for optimising urban water\u00a0resilience developed.&lt;/p&gt;</jats:p>",
+  "aliases": [
+   "10.26686/wgtn.16992955.v1"
+  ],
+  "approved": {
+   "date-parts": [
+    [
+     2011,
+     1,
+     1
+    ]
+   ]
+  },
+  "author": [
+   {
+    "affiliation": [],
+    "role": [
+     {
+      "role": "author",
+      "vocabulary": "crossref"
+     }
+    ],
+    "sequence": "additional"
+   },
+   {
+    "affiliation": [],
+    "family": "Taptiklis",
+    "given": "Nigel",
+    "role": [
+     {
+      "role": "author",
+      "vocabulary": "crossref"
+     }
+    ],
+    "sequence": "first"
+   }
+  ],
+  "content-domain": {
+   "crossmark-restriction": false,
+   "domain": []
+  },
+  "created": {
+   "date-parts": [
+    [
+     2021,
+     11,
+     11
+    ]
+   ],
+   "date-time": "2021-11-11T19:06:50Z",
+   "timestamp": 1636657610000
+  },
+  "deposited": {
+   "date-parts": [
+    [
+     2023,
+     4,
+     11
+    ]
+   ],
+   "date-time": "2023-04-11T21:17:55Z",
+   "timestamp": 1681247875000
+  },
+  "indexed": {
+   "date-parts": [
+    [
+     2025,
+     12,
+     31
+    ]
+   ],
+   "date-time": "2025-12-31T17:51:02Z",
+   "timestamp": 1767203462673,
+   "version": "build-2238731810"
+  },
+  "institution": [
+   {
+    "name": "Open Access Te Herenga Waka-Victoria University of Wellington"
+   }
+  ],
+  "is-referenced-by-count": 0,
+  "issued": {
+   "date-parts": [
+    [
+     null
+    ]
+   ]
+  },
+  "license": [
+   {
+    "URL": "https://www.wgtn.ac.nz/library/about-us/policies-and-strategies/copyright-for-the-researcharchive",
+    "content-version": "unspecified",
+    "delay-in-days": 0
+   }
+  ],
+  "member": "11224",
+  "prefix": "10.26686",
+  "publisher": "Victoria University of Wellington Library",
+  "reference-count": 0,
+  "references-count": 0,
+  "resource": {
+   "primary": {
+    "URL": "https://openaccess.wgtn.ac.nz/articles/thesis/Water_Security_or_Water_Resilience_Climate_Resilient_Water_Management_in_Wellington_New_Zealand/16992955/1"
+   }
+  },
+  "score": 8.1205225,
+  "source": "Crossref",
+  "title": [
+   "Water Security or Water Resilience? Climate Resilient Water Management in Wellington New Zealand"
+  ],
+  "type": "dissertation"
+ },
+ "no_member": {
+  "DOI": "10.20956/halrev.v1i2.312",
+  "ISSN": [
+   "2442-9899",
+   "2442-9880"
+  ],
+  "URL": "https://doi.org/10.20956/halrev.v1i2.312",
+  "abstract": "<jats:p>In several regions, the implementation of reclamation in Indonesia caused much conflict. At least, it caused by three interests; the interest of the government, employers, and society (fishermen). The interests of the Government and local authorities to give permission to reclaiming for the pursuit of local revenue, the interests of employers to reclaiming the coastal, because they wanted to add company\u2019s revenues, while the interests of society (fishermen) to defend coastal areas so it not diminish their livelihood. Reclamation in Indonesia has been governed by legislation, but it has not been able to resolve the coastal reclamation. This is due to the legislation governing coastal reclamation, and local governments are ignorant of the rules concerned. In addition, the central and local governments are often tends to interest of employers rather than the fishing communities, so it triggering conflict in reclamation. Positive law as a law made by the government and legislative assembly and the local government with local legislative, a rule that was born as result of an agreement between them, and neglecting the Islamic law that was created by God to organize all the things in this world, including in the management of the universe (coastal). God as the creator of this universe, allowing to manage and utilize natural, if for the benefit of humanity as a whole, and not for those of a human. Therefore, in the implementation of reclamation, the Government and local authorities need to synergize Islamic law into positive law in resolving the problems of social and natural resources.</jats:p>",
+  "author": [
+   {
+    "affiliation": [],
+    "family": "Supriadi",
+    "given": "Supriadi",
+    "role": [
+     {
+      "role": "author",
+      "vocabulary": "crossref"
+     }
+    ],
+    "sequence": "first"
+   }
+  ],
+  "container-title": [
+   "Hasanuddin Law Review"
+  ],
+  "content-domain": {
+   "crossmark-restriction": false,
+   "domain": []
+  },
+  "created": {
+   "date-parts": [
+    [
+     2016,
+     12,
+     18
+    ]
+   ],
+   "date-time": "2016-12-18T00:56:16Z",
+   "timestamp": 1482022576000
+  },
+  "deposited": {
+   "date-parts": [
+    [
+     2026,
+     1,
+     15
+    ]
+   ],
+   "date-time": "2026-01-15T23:16:17Z",
+   "timestamp": 1768518977000
+  },
+  "indexed": {
+   "date-parts": [
+    [
+     2026,
+     1,
+     16
+    ]
+   ],
+   "date-time": "2026-01-16T13:51:42Z",
+   "timestamp": 1768571502402,
+   "version": "3.49.0"
+  },
+  "is-referenced-by-count": 0,
+  "issn-type": [
+   {
+    "type": "electronic",
+    "value": "2442-9899"
+   },
+   {
+    "type": "print",
+    "value": "2442-9880"
+   }
+  ],
+  "issue": "2",
+  "issued": {
+   "date-parts": [
+    [
+     2016,
+     8,
+     31
+    ]
+   ]
+  },
+  "journal-issue": {
+   "issue": "2",
+   "published-online": {
+    "date-parts": [
+     [
+      2016,
+      8,
+      30
+     ]
+    ]
+   }
+  },
+  "license": [
+   {
+    "URL": "http://creativecommons.org/licenses/by-nc/4.0",
+    "content-version": "unspecified",
+    "delay-in-days": 0,
+    "start": {
+     "date-parts": [
+      [
+       2016,
+       8,
+       31
+      ]
+     ],
+     "date-time": "2016-08-31T00:00:00Z",
+     "timestamp": 1472601600000
+    }
+   }
+  ],
+  "link": [
+   {
+    "URL": "http://pasca.unhas.ac.id/ojs/index.php/halrev/article/viewFile/312/178",
+    "content-type": "application/pdf",
+    "content-version": "vor",
+    "intended-application": "text-mining"
+   },
+   {
+    "URL": "http://pasca.unhas.ac.id/ojs/index.php/halrev/article/viewFile/312/178",
+    "content-type": "unspecified",
+    "content-version": "vor",
+    "intended-application": "similarity-checking"
+   }
+  ],
+  "page": "258",
+  "prefix": "10.65844",
+  "published": {
+   "date-parts": [
+    [
+     2016,
+     8,
+     31
+    ]
+   ]
+  },
+  "published-online": {
+   "date-parts": [
+    [
+     2016,
+     8,
+     31
+    ]
+   ]
+  },
+  "reference-count": 0,
+  "references-count": 0,
+  "resource": {
+   "primary": {
+    "URL": "http://pasca.unhas.ac.id/ojs/index.php/halrev/article/view/312"
+   }
+  },
+  "score": 0.0,
+  "short-container-title": [
+   "Hasanuddin Law Rev."
+  ],
+  "source": "Crossref",
+  "title": [
+   "Legal Standing of Coastal Reclamation: Islamic and Positive Law Perspectives"
+  ],
+  "type": "journal-article",
+  "volume": "1"
+ },
+ "no_publisher": {
+  "DOI": "10.20956/halrev.v1i2.312",
+  "ISSN": [
+   "2442-9899",
+   "2442-9880"
+  ],
+  "URL": "https://doi.org/10.20956/halrev.v1i2.312",
+  "abstract": "<jats:p>In several regions, the implementation of reclamation in Indonesia caused much conflict. At least, it caused by three interests; the interest of the government, employers, and society (fishermen). The interests of the Government and local authorities to give permission to reclaiming for the pursuit of local revenue, the interests of employers to reclaiming the coastal, because they wanted to add company\u2019s revenues, while the interests of society (fishermen) to defend coastal areas so it not diminish their livelihood. Reclamation in Indonesia has been governed by legislation, but it has not been able to resolve the coastal reclamation. This is due to the legislation governing coastal reclamation, and local governments are ignorant of the rules concerned. In addition, the central and local governments are often tends to interest of employers rather than the fishing communities, so it triggering conflict in reclamation. Positive law as a law made by the government and legislative assembly and the local government with local legislative, a rule that was born as result of an agreement between them, and neglecting the Islamic law that was created by God to organize all the things in this world, including in the management of the universe (coastal). God as the creator of this universe, allowing to manage and utilize natural, if for the benefit of humanity as a whole, and not for those of a human. Therefore, in the implementation of reclamation, the Government and local authorities need to synergize Islamic law into positive law in resolving the problems of social and natural resources.</jats:p>",
+  "author": [
+   {
+    "affiliation": [],
+    "family": "Supriadi",
+    "given": "Supriadi",
+    "role": [
+     {
+      "role": "author",
+      "vocabulary": "crossref"
+     }
+    ],
+    "sequence": "first"
+   }
+  ],
+  "container-title": [
+   "Hasanuddin Law Review"
+  ],
+  "content-domain": {
+   "crossmark-restriction": false,
+   "domain": []
+  },
+  "created": {
+   "date-parts": [
+    [
+     2016,
+     12,
+     18
+    ]
+   ],
+   "date-time": "2016-12-18T00:56:16Z",
+   "timestamp": 1482022576000
+  },
+  "deposited": {
+   "date-parts": [
+    [
+     2026,
+     1,
+     15
+    ]
+   ],
+   "date-time": "2026-01-15T23:16:17Z",
+   "timestamp": 1768518977000
+  },
+  "indexed": {
+   "date-parts": [
+    [
+     2026,
+     1,
+     16
+    ]
+   ],
+   "date-time": "2026-01-16T13:51:42Z",
+   "timestamp": 1768571502402,
+   "version": "3.49.0"
+  },
+  "is-referenced-by-count": 0,
+  "issn-type": [
+   {
+    "type": "electronic",
+    "value": "2442-9899"
+   },
+   {
+    "type": "print",
+    "value": "2442-9880"
+   }
+  ],
+  "issue": "2",
+  "issued": {
+   "date-parts": [
+    [
+     2016,
+     8,
+     31
+    ]
+   ]
+  },
+  "journal-issue": {
+   "issue": "2",
+   "published-online": {
+    "date-parts": [
+     [
+      2016,
+      8,
+      30
+     ]
+    ]
+   }
+  },
+  "license": [
+   {
+    "URL": "http://creativecommons.org/licenses/by-nc/4.0",
+    "content-version": "unspecified",
+    "delay-in-days": 0,
+    "start": {
+     "date-parts": [
+      [
+       2016,
+       8,
+       31
+      ]
+     ],
+     "date-time": "2016-08-31T00:00:00Z",
+     "timestamp": 1472601600000
+    }
+   }
+  ],
+  "link": [
+   {
+    "URL": "http://pasca.unhas.ac.id/ojs/index.php/halrev/article/viewFile/312/178",
+    "content-type": "application/pdf",
+    "content-version": "vor",
+    "intended-application": "text-mining"
+   },
+   {
+    "URL": "http://pasca.unhas.ac.id/ojs/index.php/halrev/article/viewFile/312/178",
+    "content-type": "unspecified",
+    "content-version": "vor",
+    "intended-application": "similarity-checking"
+   }
+  ],
+  "page": "258",
+  "prefix": "10.65844",
+  "published": {
+   "date-parts": [
+    [
+     2016,
+     8,
+     31
+    ]
+   ]
+  },
+  "published-online": {
+   "date-parts": [
+    [
+     2016,
+     8,
+     31
+    ]
+   ]
+  },
+  "reference-count": 0,
+  "references-count": 0,
+  "resource": {
+   "primary": {
+    "URL": "http://pasca.unhas.ac.id/ojs/index.php/halrev/article/view/312"
+   }
+  },
+  "score": 0.0,
+  "short-container-title": [
+   "Hasanuddin Law Rev."
+  ],
+  "source": "Crossref",
+  "title": [
+   "Legal Standing of Coastal Reclamation: Islamic and Positive Law Perspectives"
+  ],
+  "type": "journal-article",
+  "volume": "1"
+ },
+ "no_title": {
+  "DOI": "10.33846/aijma30103",
+  "ISSN": [
+   "2622-3260"
+  ],
+  "URL": "https://doi.org/10.33846/aijma30103",
+  "container-title": [
+   "Aloha International Journal of Management Advancement"
+  ],
+  "content-domain": {
+   "crossmark-restriction": false,
+   "domain": []
+  },
+  "created": {
+   "date-parts": [
+    [
+     2025,
+     3,
+     28
+    ]
+   ],
+   "date-time": "2025-03-28T04:17:15Z",
+   "timestamp": 1743135435000
+  },
+  "deposited": {
+   "date-parts": [
+    [
+     2025,
+     3,
+     28
+    ]
+   ],
+   "date-time": "2025-03-28T04:17:17Z",
+   "timestamp": 1743135437000
+  },
+  "indexed": {
+   "date-parts": [
+    [
+     2025,
+     3,
+     28
+    ]
+   ],
+   "date-time": "2025-03-28T04:40:10Z",
+   "timestamp": 1743136810750,
+   "version": "3.40.3"
+  },
+  "is-referenced-by-count": 0,
+  "issn-type": [
+   {
+    "type": "electronic",
+    "value": "2622-3260"
+   }
+  ],
+  "issue": "1",
+  "issued": {
+   "date-parts": [
+    [
+     2025,
+     1,
+     31
+    ]
+   ]
+  },
+  "journal-issue": {
+   "issue": "1",
+   "published-online": {
+    "date-parts": [
+     [
+      2025,
+      1,
+      31
+     ]
+    ]
+   }
+  },
+  "member": "19316",
+  "prefix": "10.33846",
+  "published": {
+   "date-parts": [
+    [
+     2025,
+     1,
+     31
+    ]
+   ]
+  },
+  "published-online": {
+   "date-parts": [
+    [
+     2025,
+     1,
+     31
+    ]
+   ]
+  },
+  "publisher": "Forum Ilmiah Kesehatan - Forikes",
+  "reference-count": 0,
+  "references-count": 0,
+  "resource": {
+   "primary": {
+    "URL": "https://journal.aloha.academy/index.php/aijma/article/view/aijma30103"
+   }
+  },
+  "score": 1.0,
+  "short-container-title": [
+   "AIJMA"
+  ],
+  "source": "Crossref",
+  "type": "journal-issue",
+  "volume": "3"
+ },
+ "no_type": {
+  "DOI": "10.6019/pxd023015",
+  "URL": "https://doi.org/10.6019/pxd023015",
+  "content-domain": {
+   "crossmark-restriction": false,
+   "domain": []
+  },
+  "created": {
+   "date-parts": [
+    [
+     2020,
+     12,
+     9
+    ]
+   ],
+   "date-time": "2020-12-09T09:36:15Z",
+   "timestamp": 1607506575000
+  },
+  "deposited": {
+   "date-parts": [
+    [
+     2020,
+     12,
+     9
+    ]
+   ],
+   "date-time": "2020-12-09T09:36:16Z",
+   "timestamp": 1607506576000
+  },
+  "indexed": {
+   "date-parts": [
+    [
+     2022,
+     4,
+     1
+    ]
+   ],
+   "date-time": "2022-04-01T16:39:50Z",
+   "timestamp": 1648831190501
+  },
+  "is-referenced-by-count": 0,
+  "issued": {
+   "date-parts": [
+    [
+     null
+    ]
+   ]
+  },
+  "member": "4043",
+  "prefix": "10.6019",
+  "publisher": "EMBL-EBI",
+  "reference-count": 0,
+  "references-count": 0,
+  "resource": {
+   "primary": {
+    "URL": "http://central.proteomexchange.org/PXD023015"
+   }
+  },
+  "score": 0.0,
+  "source": "Crossref",
+  "title": [
+   "ProteomeXchange dataset"
+  ]
+ }
+}

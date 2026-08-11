@@ -2,86 +2,98 @@
 
 Follow-up work after the Rust 2024 / dependency modernization (`1129c29`).
 
-Status at that commit: builds clean on Rust 1.96, clippy and rustdoc are
-warning-free, 62 tests pass (26 unit, 30 doc, 6 integration).
+Status: builds clean on Rust 1.96, clippy and rustdoc are warning-free, 84 tests
+pass (39 unit, 32 doc, 7 integration, 6 response-shape).
 
-Items are ordered by impact. The first section contains correctness bugs that
-can silently produce wrong results today.
+Section 1 (correctness) is done, along with 3.4. Items are otherwise ordered by
+impact.
 
 ---
 
-## 1. Correctness
+## 1. Correctness — done
 
-### 1.1 Percent-encode query parameters — **highest priority**
+### 1.1 Percent-encode query parameters — **done**
 
-`format_query` / `format_queries` (`src/query/mod.rs:553`, `:563`) only replace
-whitespace with `+`. Nothing in the crate percent-encodes anything.
+`src/query/encode.rs` now percent-encodes every key and value, and
+`CrossrefRoute` implementations build routes from key/value pairs rather than by
+concatenation. `WorksQuery::new("R&D")` produces `/works?query=R%26D`; before it
+produced `/works?query=R&D`, which crossref read as `query=R` plus a stray `D`
+parameter and answered with the results for `R`.
 
-```rust
-WorksQuery::new("R&D")     // -> /works?query=R&D
-```
+The encode set keeps `:` `,` `/` `*` literal, because crossref's own filter and
+cursor syntax is built from them and the api percent-decodes before it splits.
+Both forms were checked against the live api and return identical results.
 
-The `&` terminates the parameter, so crossref sees a stray `D` parameter and
-silently returns results for `R`. The same applies to `#`, `=`, `%`, `?` and any
-non-ASCII term. Filter values (`WorksFilter::ContainerTitle`, `Assertion`, …)
-and field query values go out unencoded too.
+Note this means a `,` inside a filter *value* still can't be escaped — crossref
+splits after decoding, so neither form survives. That is an api limitation, not
+a client one.
 
-This is both a correctness bug and a query-injection vector for callers who pass
-user input straight through.
+### 1.2 `param_key` returns more than a key — **done**
 
-**Fix.** Build routes with a real encoder rather than string concatenation. The
-`url` dependency was declared but never used and has been removed — reintroduce
-`form_urlencoded`, or `url::Url` with `query_pairs_mut()`.
+`CrossrefQueryParam` now has a single method, `params(&self) -> Vec<(Cow<str>,
+Cow<str>)>`. `ResultControl::RowsOffset` and `WorkResultControl::Cursor { rows }`
+return two pairs instead of smuggling a second parameter through `param_key`.
 
-Note this interacts with item 1.2: the current `CrossrefQueryParam` shape makes
-correct encoding awkward, so the two are best done together.
+### 1.3 Deep paging silently swallows every error — **done**
 
-### 1.2 `param_key` returns more than a key
+`WorkListIterator::Item` is `Result<WorkList>` and `WorkIterator::Item` is
+`Result<Work>`. A failed page yields the error and then ends the iteration, so a
+truncated crawl can no longer be mistaken for a clean finish.
 
-`CrossrefQueryParam::param()` joins `param_key()` and `param_value()` with `=`.
-Two variants need to emit *two* parameters, and work around it by stuffing both
-into `param_key()` and returning `None` from `param_value()`:
+### 1.4 Response parsing panics instead of erroring — **done**
 
-- `ResultControl::RowsOffset` — `src/query/mod.rs:348`
-- `WorkResultControl::Cursor` with `rows` — `src/query/works.rs:552`
+The 18 hand-written `TryFrom<serde_json::Value>` impls in `src/response/work.rs`
+(1256 lines, 54 `unwrap`s) were deleted in favour of the serde derives those
+types already carried, following what was done for `Journal`. `Work` and
+`WorkList` keep a `TryFrom` that delegates to `serde_json::from_value`.
+`Message::try_from` no longer discards the underlying serde error with
+`map_err(|_e| …)`, so a parse failure now names the field that failed.
 
-The second one was a live bug until recently (it rendered `cursor=*=rows=20`);
-the shape invites that class of mistake and defeats any attempt to encode keys
-and values separately.
+Replacing the parsers surfaced six shapes the response types rejected outright.
+Each was found by parsing 37 600 works sampled from the live api — a mix of
+uniform `sample=100` draws and per-type deep pages — and each is now covered by
+a fixture in `tests/work_shapes.rs`:
 
-**Fix.** Change the trait to yield pairs, e.g.
-`fn params(&self) -> Vec<(Cow<'_, str>, Cow<'_, str>)>`, and let the route
-builder do the joining and encoding. This is the enabling refactor for 1.1.
+| shape | frequency |
+| --- | --- |
+| work with no `title` | ~5% (most `component` records) |
+| `content-domain` with no `crossmark-restriction` | ~6% |
+| work with no `publisher` | ~1 in 5 000 |
+| `funder` entry with no `name` | ~1 in 2 000 |
+| work with no `member` | ~1 in 6 000 |
+| work with no `type` | ~1 in 20 000 |
+| `license` with no `start` | ~1 in 3 000 |
+| bare `{}` `affiliation` | ~1 in 1 000 |
+| `assertion.explanation` as `{"URL": …}` rather than a string | rare |
 
-### 1.3 Deep paging silently swallows every error
+Every one of these used to panic the caller's task (`WorkList::try_from` did
+`Work::try_from(v.clone()).unwrap()` per item), and after 1.3 would have cost a
+whole page of a crawl.
 
-`WorkListIterator::next` (`src/lib.rs:856`, `:860`) returns `None` on *any*
-failure — network error, 429, deserialization failure. A caller crawling 100k
-works who hits one transient rate-limit gets a truncated result set that is
-indistinguishable from a clean finish.
+The conclusion is that crossref validates member deposits loosely enough that no
+field is guaranteed, so the member-deposited fields on `Work` are now `Option`.
+`created` and `indexed` are `Option` as well — not for data quality, but because
+`select` returns only the fields asked for (see 1.5). `explanation` became an
+untagged `Explanation` enum covering both shapes.
 
-**Fix.** Make the iterator yield `Result<WorkList>` (and `WorkIterator` yield
-`Result<Work>`). This is a breaking change to `AsyncIterator::Item`; do it
-before 1.0.
+### 1.5 `WorksQuery::elements` could never have worked — **done**
 
-### 1.4 Response parsing panics instead of erroring
+`WorkElement` was not re-exported from the crate root, so `elements()` was
+unreachable from outside the crate; and `select` responses omit every field that
+was not selected, which `Work` required. Both are fixed and
+`selected_elements_narrow_the_response` covers it against the live api.
 
-69 `.unwrap()` calls inside `TryFrom<serde_json::Value>` impls that already
-return `Result`:
+`Work::doi` is still required. A `select` that omits `DOI` therefore fails to
+parse. Modelling that properly means a separate partial-work type rather than
+making the primary key optional — worth doing if anyone needs it.
 
-- `src/response/work.rs` — 54
-- `src/response/mod.rs` — 15
+### 1.6 Confirm the `Explanation::Text` variant
 
-For example `WorkList::try_from` does `Work::try_from(v.clone()).unwrap()` per
-item, so one unexpected work in a 20-item page panics the caller's task rather
-than returning an error.
-
-**Fix.** Propagate with `?`. Where crossref genuinely returns heterogeneous
-shapes, prefer `Option`/`serde_json::Value` in the type over an unwrap.
-
-Consider whether these hand-written `TryFrom` impls should exist at all — the
-`Journal` ones were deleted in favour of plain serde derives because the two
-paths had drifted apart and disagreed. `Work` has the same duplication.
+`Assertion::explanation` was typed `Option<String>` but the only occurrence in
+37 600 sampled works was a `{"URL": …}` object, so it is now an untagged enum
+carrying both. The `Text` variant is inferred from the original type, not
+observed — either find a record that uses it or drop the variant and make
+`Explanation` a plain struct.
 
 ---
 
@@ -107,7 +119,8 @@ until-issued-date       update-type
 ```
 
 The ROR and award-amount families are the notable ones — ROR IDs are how
-crossref now models affiliations.
+crossref now models affiliations. Relatedly, `Affiliation` only models `name`;
+crossref now also returns an `id` array carrying ROR identifiers.
 
 ### 2.2 Filters that are not valid on `/works`
 
@@ -155,7 +168,8 @@ mutex.
 
 **Fix.** Parse the headers and add a shared limiter, plus bounded retry with
 backoff on 429. This would also let the integration tests run concurrently
-again.
+again. Now that deep paging yields `Result` (1.3), a 429 mid-crawl is visible
+rather than silent, but it still ends the crawl.
 
 ### 3.2 Expose `base_url` on the builder
 
@@ -171,18 +185,25 @@ into the public API and lets callers mutate the base url mid-flight. Make them
 private once 3.2 lands (`examples/check_pool.rs` uses `client` and would need
 adjusting).
 
-### 3.4 `journals()` is inconsistent with every other route
+### 3.4 `journals()` is inconsistent with every other route — **done**
 
-```rust
-client.journals(query: String, result_control: Option<JournalResultControl>)
-```
+`JournalsQuery` replaces the `(String, Option<JournalResultControl>)` pair, and
+`JournalResultControl` — with its stringly-typed `sort: Option<String>` — is
+gone. `Crossref::journals` now takes a query struct like every other list route.
 
-Every other list route takes a query struct (`WorksQuery`, `MembersQuery`,
-`FundersQuery`). `JournalResultControl` is also a parallel, stringly-typed
-result-control type with `sort: Option<String>` instead of `Sort`.
+`JournalsQuery` deliberately carries only free form terms and a `ResultControl`
+rather than going through `impl_common_query!`: `/journals` was probed against
+the live api and rejects `filter`, `sort`, `order`, `facet`, `select` and
+`sample`, accepting only `query`, `rows` and `offset`. Note `ResultControl` can
+still express `Sample`, which this route rejects — the same class of gap as 2.2.
 
-**Fix.** Introduce `JournalsQuery` following `impl_common_query!` and fold the
-result control into the standard `ResultControl`.
+### 3.5 The CLI silently drops flags a route cannot honour
+
+`crossref journals --sort score` accepts `--sort` and ignores it, because
+`/journals` has no `sort` parameter (3.4). `--sample` is dropped there too. The
+flags are shared across every subcommand through one `Opts`, so the CLI should
+either reject a flag the target route does not support or warn about it, rather
+than quietly returning differently ordered results than asked for.
 
 ---
 
@@ -197,10 +218,8 @@ licenses". Straight copy-paste drift; the same wrong text is duplicated on
 
 ### 4.2 Document the public API
 
-~118 public items have no doc comment (59 enum variants, 41 struct fields, 8
-methods, 6 associated functions, 4 structs). `#![warn(missing_docs)]` is
-commented out in `src/lib.rs` with a TODO — re-enable it once they are filled
-in, and keep it on.
+`#![warn(missing_docs)]` is commented out in `src/lib.rs` with a TODO — re-enable
+it once the remaining items are documented, and keep it on.
 
 ### 4.3 Finish or remove `cn` and `tdm`
 
@@ -217,6 +236,36 @@ setters take bare values while its own options are `Option<T>`. Adding
 `maybe_sort(Option<Sort>)`-style setters, or making the existing ones take
 `impl Into<Option<T>>`, would remove that.
 
+### 4.5 Two deserialization paths for `Response`
+
+`Response` has both a `TryFrom<serde_json::Value>` (used by the client) and a
+hand-written `Deserialize` (used by the fixture tests). They are independent
+implementations of the same mapping and have drifted before. Collapse them —
+`TryFrom` should call `serde_json::from_value::<Response>`.
+
+`JournalList::try_from` is part of the same knot: it deserializes into a private
+`Raw` struct and then synthesizes `facets: HashMap::new()`, because `JournalList`
+carries a `facets` field that `/journals` never returns. The field probably does
+not belong on the type.
+
+### 4.6 Response types are not re-exported at the crate root
+
+`WorkElement` not being re-exported made `WorksQuery::elements` unreachable from
+outside the crate (1.5). The same is true of most of `response::work` —
+`Contributor`, `License`, `Date`, `PartialDate`, `Reference`, `Explanation` and
+the rest are only reachable through the full `crossref_client::response::work::`
+path, even though they appear in the public fields of `Work`. Re-export the
+types that a caller of `works()` has to name.
+
+### 4.7 `Relation` and `Review` are dead types
+
+`Work::relation` and `Work::review` are both `Option<Relations>`, i.e.
+`HashMap<String, serde_json::Value>`, so the `Relation` and `Review` structs
+next to them are never constructed. The comment on `Relations` says the value
+can also be an array, which is why it was widened. Either type those two fields
+properly (an untagged enum over the two shapes, as done for `Explanation`) or
+delete the unused structs.
+
 ---
 
 ## 5. Project hygiene
@@ -227,9 +276,9 @@ setters take bare values while its own options are `Option<T>`. Adding
 replaced it. Add a GitHub Actions workflow running `cargo test`,
 `cargo clippy --all-targets --all-features -- -D warnings` and `cargo doc`.
 
-The integration tests hit the live API and serialize themselves through a mutex
-to stay under the rate limit — either gate them behind a feature or accept the
-network dependency in CI.
+`tests/integration.rs` hits the live API and serializes itself through a mutex
+to stay under the rate limit — either gate it behind a feature or accept the
+network dependency in CI. `tests/work_shapes.rs` is offline and can always run.
 
 ### 5.2 Include the repository URL in the polite User-Agent
 
@@ -245,7 +294,14 @@ is free on crates.io.
 
 ### 5.4 Offline route tests
 
-Every test that exercises routing beyond the unit level needs the network. Once
-3.2 lands, add tests that point `base_url` at a local mock and assert the exact
-URL produced for representative queries — that is where bugs like the missing
-`/works?` prefix on `sample` would have been caught.
+Route construction is now covered offline for `/works` and `/journals`
+(encoding, `select`, cursors, rows+offset, empty queries). Once 3.2 lands, add
+tests that point `base_url` at a local mock and assert the full request url end
+to end.
+
+### 5.5 A periodic shape check against the live API
+
+`tests/work_shapes.rs` pins the shapes known today. Crossref keeps adding fields
+(ROR ids on affiliations, for one) and members keep depositing new gaps, so it
+is worth re-running a large `sample=100` sweep through `Work` occasionally to
+catch the next one before a user does.

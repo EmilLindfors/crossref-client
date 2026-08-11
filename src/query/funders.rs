@@ -51,13 +51,9 @@ impl CrossrefRoute for Funders {
     fn route(&self) -> Result<String> {
         match self {
             Funders::Identifier(s) => Ok(format!("{}/{}", Component::Funders.route()?, s)),
+            // `route` already carries its own `?` and is empty for an empty query
             Funders::Query(query) => {
-                let query = query.route()?;
-                if query.is_empty() {
-                    Component::Funders.route()
-                } else {
-                    Ok(format!("{}?{}", Component::Funders.route()?, query))
-                }
+                Ok(format!("{}{}", Component::Funders.route()?, query.route()?))
             }
             Funders::Works(combined) => Self::combined_route(combined),
         }

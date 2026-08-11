@@ -1,185 +1,99 @@
-use crate::error::{Error, Result};
+use crate::error::Result;
+use crate::query::encode;
 use crate::query::works::{WorksCombiner, WorksIdentQuery};
-use crate::query::{Component, CrossrefQuery, CrossrefRoute, ResourceComponent};
+use crate::query::{Component, CrossrefQuery, CrossrefQueryParam, CrossrefRoute, ResourceComponent, ResultControl, format_queries};
+use std::borrow::Cow;
 
-#[derive(Debug, Clone)]
-pub struct JournalResultControl {
-    pub limit: Option<usize>,
-    pub offset: Option<usize>,
-    pub sample: Option<bool>,
-    pub sort: Option<String>,
+/// Used to construct a query that targets crossref `Journal` elements
+///
+/// # Example
+///
+/// ```no_run
+/// use crossref_client::{JournalsQuery, ResultControl};
+///
+/// let query = JournalsQuery::new("Economic Geography")
+///     .result_control(ResultControl::Rows(10));
+/// ```
+///
+/// `/journals` is the narrowest of the list routes: it takes free form query
+/// terms and paging, and rejects `filter`, `sort`, `order`, `facet`, `select`
+/// and `sample` with a `400`. The query type mirrors that rather than offering
+/// options the route cannot honour.
+#[derive(Debug, Clone, Default)]
+pub struct JournalsQuery {
+    /// search by non specific query
+    pub queries: Vec<String>,
+    /// limit the returned items and set an offset
+    ///
+    /// Only `rows` and `offset` are supported by this route;
+    /// [`ResultControl::Sample`] is rejected by crossref with a `400`.
+    pub result_control: Option<ResultControl>,
 }
 
-impl JournalResultControl {
-    pub fn new(limit: Option<usize>, offset: Option<usize>, sample: Option<bool>, sort: Option<String>) -> Self {
-        JournalResultControl {
-            limit,
-            offset,
-            sample,
-            sort,
-        }
+impl JournalsQuery {
+    /// alias for creating an empty default element
+    pub fn empty() -> Self {
+        JournalsQuery::default()
     }
 
-    pub fn new_from_limit(limit: usize) -> Self {
-        JournalResultControl {
-            limit: Some(limit),
-            offset: None,
-            sample: None,
-            sort: None,
-        }
+    /// Convenience method to create a new query with a term directly
+    pub fn new<T: ToString>(query: T) -> Self {
+        Self::empty().query(query)
     }
 
-    pub fn new_from_offset(offset: usize) -> Self {
-        JournalResultControl {
-            limit: None,
-            offset: Some(offset),
-            sample: None,
-            sort: None,
-        }
-    }
-
-    pub fn new_from_sample(sample: bool) -> Self {
-        JournalResultControl {
-            limit: None,
-            offset: None,
-            sample: Some(sample),
-            sort: None,
-        }
-    }
-
-    pub fn new_from_sort(sort: String) -> Self {
-        JournalResultControl {
-            limit: None,
-            offset: None,
-            sample: None,
-            sort: Some(sort),
-        }
-    }
-
-    pub fn limit(mut self, limit: usize) -> Self {
-        self.limit = Some(limit);
+    /// add a new free form query
+    pub fn query<T: ToString>(mut self, query: T) -> Self {
+        self.queries.push(query.to_string());
         self
     }
 
-    pub fn offset(mut self, offset: usize) -> Self {
-        self.offset = Some(offset);
+    /// add a bunch of free form query terms
+    pub fn queries<T: ToString>(mut self, queries: &[T]) -> Self {
+        self.queries.extend(queries.iter().map(T::to_string));
         self
     }
 
-    pub fn sample(mut self, sample: bool) -> Self {
-        self.sample = Some(sample);
+    /// set result control option to query
+    pub fn result_control(mut self, result_control: ResultControl) -> Self {
+        self.result_control = Some(result_control);
         self
     }
-
-    pub fn sort(mut self, sort: String) -> Self {
-        self.sort = Some(sort);
-        self
-    }
-
 }
 
-impl std::fmt::Display for JournalResultControl {
-    /// Renders the result control as a query string fragment, e.g. `rows=10&offset=20`.
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let mut params = Vec::new();
-        if let Some(l) = self.limit {
-            params.push(format!("rows={}", l));
+impl CrossrefRoute for JournalsQuery {
+    fn route(&self) -> Result<String> {
+        let mut params: Vec<(Cow<'_, str>, Cow<'_, str>)> = Vec::new();
+        if !self.queries.is_empty() {
+            params.push((
+                Cow::Borrowed("query"),
+                Cow::Owned(format_queries(&self.queries)),
+            ));
         }
-        if let Some(o) = self.offset {
-            params.push(format!("offset={}", o));
+        if let Some(rc) = &self.result_control {
+            params.extend(rc.params());
         }
-        if let Some(s) = self.sample {
-            params.push(format!("sample={}", s));
-        }
-        if let Some(s) = &self.sort {
-            params.push(format!("sort={}", s));
-        }
-        f.write_str(&params.join("&"))
+        Ok(encode::query_string(&params))
     }
 }
-
-impl TryFrom<String> for JournalResultControl {
-    type Error = Error;
-
-    fn try_from(value: String) -> std::result::Result<Self, Self::Error> {
-        
-    
-        let mut limit = None;
-        let mut offset = None;
-        let mut sample = None;
-        let mut sort = None;
-
-        let parts = value.split('&').collect::<Vec<&str>>();
-        for part in parts {
-            let kv = part.split('=').collect::<Vec<&str>>();
-            if kv.len() != 2 {
-                return Err(Error::InvalidResultControl {
-                    error: value.clone(),
-                });
-            }
-            match kv[0] {
-                "rows" => {
-                    limit = Some(kv[1].parse().map_err(|e| Error::InvalidResultControl {
-                        error: format!("Invalid limit: {}", e),
-                    })?);
-                }
-                "offset" => {
-                    offset = Some(kv[1].parse().map_err(|e| Error::InvalidResultControl {
-                        error: format!("Invalid offset: {}", e),
-                    })?);
-                }
-                "sample" => {
-                    sample = Some(kv[1].parse().map_err(|e| Error::InvalidResultControl {
-                        error: format!("Invalid sample: {}", e),
-                    })?);
-                }
-                "sort" => {
-                    sort = Some(kv[1].to_string());
-                }
-                _ => return Err(Error::InvalidResultControl { error: value.clone() }),
-            }
-        }
-
-        Ok(JournalResultControl {
-            limit,
-            offset,
-            sample,
-            sort,
-        })
-    }
-}
-
-
-
-
-
 
 /// constructs the request payload for the `/journals` route
 #[derive(Debug, Clone)]
 pub enum Journals {
     /// target a specific journal at `/journals/{id}`
     Identifier(String),
-    /// target a `Work` for a specific funder at `/journals/{id}/works?query..`
+    /// target a `Work` for a specific journal at `/journals/{id}/works?query..`
     Works(WorksIdentQuery),
-    /// free form query for `/journals?query...`
-    Query(String, Option<JournalResultControl>),
+    /// target all journals that match the query at `/journals?query...`
+    Query(JournalsQuery),
 }
 
 impl CrossrefRoute for Journals {
     fn route(&self) -> Result<String> {
         match self {
             Journals::Identifier(s) => Ok(format!("{}/{}", Component::Journals.route()?, s)),
-            Journals::Query(query, result_control) => {
-                let q = query.split(' ').collect::<Vec<&str>>().join("+");
-                if let Some(rc) = result_control {
-                    if query.is_empty() {
-                        Ok(format!("{}/?{}", Component::Journals.route()?, rc))
-                    } else {
-                        Ok(format!("{}/?query={}&{}", Component::Journals.route()?, q, rc))
-                    }
-                } else {
-                    Ok(format!("{}/?query={}", Component::Journals.route()?, q))
-                }
+            // `route` already carries its own `?` and is empty for an empty query
+            Journals::Query(query) => {
+                Ok(format!("{}{}", Component::Journals.route()?, query.route()?))
             }
             Journals::Works(combined) => Self::combined_route(combined),
         }
@@ -189,5 +103,29 @@ impl CrossrefRoute for Journals {
 impl CrossrefQuery for Journals {
     fn resource_component(self) -> ResourceComponent {
         ResourceComponent::Journals(self)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn an_empty_query_targets_the_bare_route() {
+        assert_eq!(
+            "/journals",
+            &Journals::Query(JournalsQuery::empty()).route().unwrap()
+        );
+    }
+
+    #[test]
+    fn terms_and_paging_render_as_separate_parameters() {
+        let query = JournalsQuery::new("Economic Geography")
+            .result_control(ResultControl::RowsOffset { rows: 10, offset: 20 });
+
+        assert_eq!(
+            "/journals?query=Economic%20Geography&rows=10&offset=20",
+            &Journals::Query(query).route().unwrap()
+        );
     }
 }

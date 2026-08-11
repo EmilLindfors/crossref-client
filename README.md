@@ -176,6 +176,7 @@ async fn run() -> Result<(), crossref_client::Error> {
     let mut pages = client.deep_page(WorksQuery::new("Machine Learning"));
     let mut all_works: Vec<Work> = Vec::new();
     while let Some(page) = pages.next().await {
+        let page = page?;
         all_works.extend(page.items);
     }
 
@@ -191,6 +192,7 @@ async fn run() -> Result<(), crossref_client::Error> {
 
     let mut works = client.deep_page("Machine Learning").into_work_iter();
     while let Some(work) = works.next().await {
+        let work = work?;
         println!("{}", work.doi);
     }
 
@@ -212,6 +214,7 @@ async fn run() -> Result<(), crossref_client::Error> {
     );
     let mut all_funder_work_list: Vec<WorkList> = Vec::new();
     while let Some(page) = pages.next().await {
+        let page = page?;
         all_funder_work_list.push(page);
     }
 
@@ -231,6 +234,7 @@ async fn run() -> Result<(), crossref_client::Error> {
     ).into_work_iter();
     let mut all_works: Vec<Work> = Vec::new();
     while let Some(work) = works.next().await {
+        let work = work?;
         all_works.push(work);
     }
 

@@ -1,14 +1,10 @@
 // see https://github.com/Crossref/rest-api-doc/blob/master/api_format.md
 
-use std::collections::HashMap;
-
 use crate::error::Error;
 use crate::response::{FacetMap, QueryResponse};
 use chrono::{Datelike, NaiveDate};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-
-use super::FacetItem;
 
 /// A hashmap containing relation name, `Relation` pairs.
 /// [crossref rest-api-doc](https://github.com/CrossRef/rest-api-doc/blob/master/api_format.md#relations)
@@ -36,81 +32,8 @@ pub struct WorkList {
 impl TryFrom<serde_json::Value> for WorkList {
     type Error = Error;
 
-    fn try_from(value: serde_json::Value) -> std::result::Result<Self, Self::Error> {
-      match value {
-        Value::Object(map) => {
-          let facets: HashMap<String, FacetItem> = map
-          .get("facets")
-          .ok_or(Error::MissingField {
-              msg: "facets".to_string(),
-          })?
-            .as_object()
-            .ok_or(Error::InvalidTypeName {
-                name: "facets".to_string(),
-            })?
-            .iter()
-            .map(|(k, v)| (k.to_string(), FacetItem::try_from(v.clone()).unwrap()))
-            .collect();
-
-  
-
-              
-                
-     
-
-          let total_results = map
-              .get("total-results")
-              .ok_or(Error::MissingField {
-                  msg: "total-results".to_string(),
-              })?
-                .as_u64()
-                .map(|v| v as usize)
-                .ok_or(Error::InvalidTypeName {
-                    name: "total-results".to_string(),
-                })?;
-
-
-          let items_per_page = map
-              .get("items-per-page")
-              .and_then(|v| v.as_u64())
-              .map(|v| v as usize);
-
-          let query = map
-              .get("query")
-              .and_then(|v| v.as_object())
-              .map(|v| QueryResponse::try_from(Value::Object(v.clone())).unwrap());
-
-          let items: Vec<Work> = map
-              .get("items")
-                .ok_or(Error::MissingField {
-                    msg: "items".to_string(),
-                })?
-                .as_array() 
-                .ok_or(Error::InvalidTypeName {
-                    name: "items".to_string(),
-                })?
-                .iter()
-                .map(|v| Work::try_from(v.clone()).unwrap())
-                .collect();
-
-          let next_cursor = map
-              .get("next-cursor")
-              .and_then(|v| v.as_str())
-              .map(|v| v.to_string());
-
-          Ok(WorkList {
-              facets,
-              total_results,
-              items_per_page,
-              query,
-              items,
-              next_cursor,
-          })
-        }
-        _ => Err(Error::InvalidMessageType {
-            name: value.to_string(),
-        })?,
-    }
+    fn try_from(value: serde_json::Value) -> Result<Self, Self::Error> {
+        serde_json::from_value(value).map_err(|error| Error::Serde { error })
     }
 }
 
@@ -123,8 +46,16 @@ impl TryFrom<serde_json::Value> for WorkList {
 #[allow(missing_docs)]
 pub struct Work {
     /// Name of work's publisher
-    pub publisher: String,
+    ///
+    /// Optional for the same reason as [`Work::type_`]: it is deposited by the
+    /// member, not assigned by crossref.
+    pub publisher: Option<String>,
     /// Work titles, including translated titles
+    ///
+    /// Absent for roughly 5% of works -- most `component` records and a
+    /// scattering of datasets carry no title at all -- so an untitled work
+    /// deserializes to an empty list rather than failing the whole page.
+    #[serde(default)]
     pub title: Vec<String>,
     /// Work titles in the work's original publication language
     pub original_title: Option<Vec<String>>,
@@ -151,12 +82,22 @@ pub struct Work {
     #[serde(rename = "URL")]
     pub url: Option<String>,
     /// Member identifier of the form `http://id.crossref.org/member/MEMBER_ID`
-    pub member: String,
+    ///
+    /// Absent from a handful of records whose depositing member no longer exists.
+    pub member: Option<String>,
     /// Enumeration, one of the type ids from `https://api.crossref.org/v1/types`
+    ///
+    /// Crossref validates member deposits loosely, so nearly every field can be
+    /// absent from a record -- roughly one work in 20 000 has no type. Only
+    /// [`Work::doi`] is required, and even that assumes the query did not drop
+    /// it with [`WorksQuery::elements`](crate::WorksQuery::elements).
     #[serde(rename = "type")]
-    pub type_: String,
+    pub type_: Option<String>,
     /// the day this work entry was created
-    pub created: Date,
+    ///
+    /// Absent when the query narrowed the response with
+    /// [`WorksQuery::elements`](crate::WorksQuery::elements).
+    pub created: Option<Date>,
     /// Date on which the DOI was first registered
     pub date: Option<Date>,
     /// Date on which the work metadata was most recently updated
@@ -166,7 +107,10 @@ pub struct Work {
     pub score: Option<f32>,
     /// Date on which the work metadata was most recently indexed.
     /// Re-indexing does not imply a metadata change, see `deposited` for the most recent metadata change date
-    pub indexed: Date,
+    ///
+    /// Absent when the query narrowed the response with
+    /// [`WorksQuery::elements`](crate::WorksQuery::elements).
+    pub indexed: Option<Date>,
     /// Earliest of `published-print` and `published-online`
     pub issued: Option<PartialDate>,
     /// ate on which posted content was made available online
@@ -231,404 +175,8 @@ pub struct Work {
 impl TryFrom<serde_json::Value> for Work {
     type Error = Error;
 
-    fn try_from(value: serde_json::Value) -> std::result::Result<Self, Self::Error> {
-        match value {
-            Value::Object(map) => {
-                let publisher = map
-                    .get("publisher")
-                    .ok_or(Error::MissingField {
-                        msg: "publisher".to_string(),
-                    })?
-                    .as_str()
-                    .ok_or(Error::InvalidTypeName {
-                        name: "publisher".to_string(),
-                    })?
-                    .to_string();
-
-                let title: Vec<String> = map
-                    .get("title")
-                    .ok_or(Error::MissingField {
-                        msg: "title".to_string(),
-                    })?
-                    .as_array()
-                    .ok_or(Error::InvalidTypeName {
-                        name: "title".to_string(),
-                    })?
-                    .iter()
-                    .map(|v| v.as_str().unwrap().to_string())
-                    .collect();
-
-                let original_title: Option<Vec<String>> = map
-                    .get("original-title")
-                    .and_then(|v| v.as_array())
-                    .map(|v| v.iter().map(|v| v.as_str().unwrap().to_string()).collect());
-
-                let language = map
-                    .get("language")
-                    .and_then(|v| v.as_str())
-                    .map(|v| v.to_string());
-
-                let short_title: Option<Vec<String>> = map
-                    .get("short-title")
-                    .and_then(|v| v.as_array())
-                    .map(|v| v.iter().map(|v| v.as_str().unwrap().to_string()).collect());
-
-                let abstract_: Option<String> = map
-                    .get("abstract")
-                    .and_then(|v| v.as_str())
-                    .map(|v| v.to_string());
-
-                let references_count = map
-                    .get("references-count")
-                    .and_then(|v| v.as_i64())
-                    .map(|v| v as i32);
-
-                let is_referenced_by_count = map
-                    .get("is-referenced-by-count")
-                    .and_then(|v| v.as_i64())
-                    .map(|v| v as i32);
-
-                let source = map
-                    .get("source")
-                    .and_then(|v| v.as_str())
-                    .map(|v| v.to_string());
-
-                let journal_issue = map
-                    .get("journal-issue")
-                    .and_then(|v| v.as_object())
-                    .map(|v| Issue::try_from(Value::Object(v.clone())).unwrap());
-
-                let prefix = map
-                    .get("prefix")
-                    .and_then(|v| v.as_str())
-                    .map(|v| v.to_string());
-
-                let doi = map
-                    .get("DOI")
-                    .ok_or(Error::MissingField {
-                        msg: "DOI".to_string(),
-                    })?
-                    .as_str()
-                    .ok_or(Error::InvalidTypeName {
-                        name: "DOI".to_string(),
-                    })?
-                    .to_string();
-
-                let url = map
-                    .get("URL")
-                    .and_then(|v| v.as_str())
-                    .map(|v| v.to_string());
-
-                let member = map
-                    .get("member")
-                    .ok_or(Error::MissingField {
-                        msg: "member".to_string(),
-                    })?
-                    .as_str()
-                    .ok_or(Error::InvalidTypeName {
-                        name: "member".to_string(),
-                    })?
-                    .to_string();
-
-                let type_ = map
-                    .get("type")
-                    .ok_or(Error::MissingField {
-                        msg: "type".to_string(),
-                    })?
-                    .as_str()
-                    .ok_or(Error::InvalidTypeName {
-                        name: "type".to_string(),
-                    })?
-                    .to_string();
-
-                let created = map
-                    .get("created")
-                    .ok_or(
-                        Error::MissingField {
-                            msg: "created".to_string(),
-                        },
-                    )?
-                    .as_object()
-                    .ok_or(Error::InvalidTypeName {
-                        name: "created".to_string(),
-                    })
-                    .map(|v| Date::try_from(Value::Object(v.clone())).unwrap())?;
-
-                let date = map
-                    .get("date")
-                    .and_then(|v| v.as_object())
-                    .map(|v| Date::try_from(Value::Object(v.clone())).unwrap());
-
-                let deposited = map
-                    .get("deposited")
-                    .and_then(|v| v.as_object())
-                    .map(|v| Date::try_from(Value::Object(v.clone())).unwrap());
-
-                let score = map.get("score").and_then(|v| v.as_f64()).map(|v| v as f32);
-
-                let indexed = map
-                    .get("indexed")
-                    .ok_or(Error::MissingField {
-                        msg: "indexed".to_string(),
-                    })?
-                    .as_object()
-                    .ok_or(Error::InvalidTypeName {
-                        name: "indexed".to_string(),
-                    })
-                    .map(|v| Date::try_from(Value::Object(v.clone())).unwrap())?;
-
-                let issued = map
-                    .get("issued")
-                    .and_then(|v| v.as_object())
-                    .map(|v| PartialDate::try_from(Value::Object(v.clone())).unwrap());
-
-                let posted = map
-                    .get("posted")
-                    .and_then(|v| v.as_object())
-                    .map(|v| PartialDate::try_from(Value::Object(v.clone())).unwrap());
-
-                let accepted = map
-                    .get("accepted")
-                    .and_then(|v| v.as_object())
-                    .map(|v| PartialDate::try_from(Value::Object(v.clone())).unwrap());
-
-                let subtitle = map
-                    .get("subtitle")
-                    .and_then(|v| v.as_array())
-                    .map(|v| v.iter().map(|v| v.as_str().unwrap().to_string()).collect());
-
-                let container_title = map
-                    .get("container-title")
-                    .and_then(|v| v.as_array())
-                    .map(|v| v.iter().map(|v| v.as_str().unwrap().to_string()).collect());
-
-                let short_container_title = map
-                    .get("short-container-title")
-                    .and_then(|v| v.as_array())
-                    .map(|v| v.iter().map(|v| v.as_str().unwrap().to_string()).collect());
-
-                let group_title = map
-                    .get("group-title")
-                    .and_then(|v| v.as_str())
-                    .map(|v| v.to_string());
-
-                let issue = map
-                    .get("issue")
-                    .and_then(|v| v.as_str())
-                    .map(|v| v.to_string());
-
-                let volume = map
-                    .get("volume")
-                    .and_then(|v| v.as_str())
-                    .map(|v| v.to_string());
-
-                let page = map
-                    .get("page")
-                    .and_then(|v| v.as_str())
-                    .map(|v| v.to_string());
-
-                let article_number = map
-                    .get("article-number")
-                    .and_then(|v| v.as_str())
-                    .map(|v| v.to_string());
-
-                let published_print = map
-                    .get("published-print")
-                    .and_then(|v| v.as_object())
-                    .map(|v| PartialDate::try_from(Value::Object(v.clone())).unwrap());
-
-                let published_online = map
-                    .get("published-online")
-                    .and_then(|v| v.as_object())
-                    .map(|v| PartialDate::try_from(Value::Object(v.clone())).unwrap());
-
-                let subject = map
-                    .get("subject")
-                    .and_then(|v| v.as_array())
-                    .map(|v| v.iter().map(|v| v.as_str().unwrap().to_string()).collect());
-
-                let issn = map
-                    .get("ISSN")
-                    .and_then(|v| v.as_array())
-                    .map(|v| v.iter().map(|v| v.as_str().unwrap().to_string()).collect());
-
-                let issn_type = map.get("issn-type").and_then(|v| v.as_array()).map(|v| {
-                    v.iter()
-                        .map(|v| ISSN::try_from(v.clone()).unwrap())
-                        .collect()
-                });
-
-                let isbn = map
-                    .get("ISBN")
-                    .and_then(|v| v.as_array())
-                    .map(|v| v.iter().map(|v| v.as_str().unwrap().to_string()).collect());
-
-                let archive = map
-                    .get("archive")
-                    .and_then(|v| v.as_array())
-                    .map(|v| v.iter().map(|v| v.as_str().unwrap().to_string()).collect());
-
-                let license = map.get("license").and_then(|v| v.as_array()).map(|v| {
-                    v.iter()
-                        .map(|v| License::try_from(v.clone()).unwrap())
-                        .collect()
-                });
-
-                let funder = map.get("funder").and_then(|v| v.as_array()).map(|v| {
-                    v.iter()
-                        .map(|v| FundingBody::try_from(v.clone()).unwrap())
-                        .collect()
-                });
-
-                let assertion = map.get("assertion").and_then(|v| v.as_array()).map(|v| {
-                    v.iter()
-                        .map(|v| Assertion::try_from(v.clone()).unwrap())
-                        .collect()
-                });
-
-                let author = map.get("author").and_then(|v| v.as_array()).map(|v| {
-                    v.iter()
-                        .map(|v| Contributor::try_from(v.clone()).unwrap())
-                        .collect()
-                });
-
-                let editor = map.get("editor").and_then(|v| v.as_array()).map(|v| {
-                    v.iter()
-                        .map(|v| Contributor::try_from(v.clone()).unwrap())
-                        .collect()
-                });
-
-                let chair = map.get("chair").and_then(|v| v.as_array()).map(|v| {
-                    v.iter()
-                        .map(|v| Contributor::try_from(v.clone()).unwrap())
-                        .collect()
-                });
-
-                let translator = map.get("translator").and_then(|v| v.as_array()).map(|v| {
-                    v.iter()
-                        .map(|v| Contributor::try_from(v.clone()).unwrap())
-                        .collect()
-                });
-
-                let update_to = map.get("update-to").and_then(|v| v.as_array()).map(|v| {
-                    v.iter()
-                        .map(|v| Update::try_from(v.clone()).unwrap())
-                        .collect()
-                });
-
-                let update_policy = map
-                    .get("update-policy")
-                    .and_then(|v| v.as_str())
-                    .map(|v| v.to_string());
-
-                let link = map.get("link").and_then(|v| v.as_array()).map(|v| {
-                    v.iter()
-                        .map(|v| ResourceLink::try_from(v.clone()).unwrap())
-                        .collect()
-                });
-
-                let clinical_trial_number = map
-                    .get("clinical-trial-number")
-                    .and_then(|v| v.as_array())
-                    .map(|v| {
-                        v.iter()
-                            .map(|v| ClinicalTrialNumber::try_from(v.clone()).unwrap())
-                            .collect()
-                    });
-
-                let alternative_id = map
-                    .get("alternative-id")
-                    .and_then(|v| v.as_array())
-                    .map(|v| v.iter().map(|v| v.as_str().unwrap().to_string()).collect());
-
-                let reference = map.get("reference").and_then(|v| v.as_array()).map(|v| {
-                    v.iter()
-                        .map(|v| Reference::try_from(v.clone()).unwrap())
-                        .collect()
-                });
-
-                let content_domain = map
-                    .get("content-domain")
-                    .and_then(|v| v.as_object())
-                    .map(|v| ContentDomain::try_from(Value::Object(v.clone())).unwrap());
-
-                let relation = map.get("relation").and_then(|v| v.as_object()).map(|v| {
-                    let mut map = HashMap::new();
-                    for (k, v) in v.iter() {
-                        map.insert(k.to_string(), v.clone());
-                    }
-                    map
-                });
-
-                let review = map.get("review").and_then(|v| v.as_object()).map(|v| {
-                    let mut map = HashMap::new();
-                    for (k, v) in v.iter() {
-                        map.insert(k.to_string(), v.clone());
-                    }
-                    map
-                });
-
-                Ok(Work {
-                    publisher,
-                    title,
-                    original_title,
-                    language,
-                    short_title,
-                    abstract_,
-                    references_count,
-                    is_referenced_by_count,
-                    source,
-                    journal_issue,
-                    prefix,
-                    doi,
-                    url,
-                    member,
-                    type_,
-                    created,
-                    date,
-                    deposited,
-                    score,
-                    indexed,
-                    issued,
-                    posted,
-                    accepted,
-                    subtitle,
-                    container_title,
-                    short_container_title,
-                    group_title,
-                    issue,
-                    volume,
-                    page,
-                    article_number,
-                    published_print,
-                    published_online,
-                    subject,
-                    issn,
-                    issn_type,
-                    isbn,
-                    archive,
-                    license,
-                    funder,
-                    assertion,
-                    author,
-                    editor,
-                    chair,
-                    translator,
-                    update_to,
-                    update_policy,
-                    link,
-                    clinical_trial_number,
-                    alternative_id,
-                    reference,
-                    content_domain,
-                    relation,
-                    review,
-                })
-            }
-            _ => Err(Error::InvalidMessageType {
-                name: value.to_string(),
-            })?,
-        }
+    fn try_from(value: serde_json::Value) -> Result<Self, Self::Error> {
+        serde_json::from_value(value).map_err(|error| Error::Serde { error })
     }
 }
 
@@ -698,7 +246,9 @@ impl DateParts {
 #[allow(missing_docs)]
 pub struct FundingBody {
     /// Funding body primary name
-    pub name: String,
+    ///
+    /// Members occasionally deposit a funder entry carrying only an award list.
+    pub name: Option<String>,
     /// Optional [Open Funder Registry](http://www.crossref.org/fundingdata/registry.html) DOI uniquely identifing the funding body
     #[serde(rename = "DOI")]
     pub doi: Option<String>,
@@ -707,52 +257,6 @@ pub struct FundingBody {
     /// Either `crossref` or `publisher`
     #[serde(rename = "doi-asserted-by")]
     pub doi_asserted_by: Option<String>,
-}
-
-impl TryFrom<serde_json::Value> for FundingBody {
-    type Error = Error;
-
-    fn try_from(value: serde_json::Value) -> std::result::Result<Self, Self::Error> {
-        match value {
-            Value::Object(map) => {
-                let name = map
-                    .get("name")
-                    .ok_or(Error::MissingField {
-                        msg: "name".to_string(),
-                    })?
-                    .as_str()
-                    .ok_or(Error::InvalidTypeName {
-                        name: "name".to_string(),
-                    })?
-                    .to_string();
-
-                let doi = map
-                    .get("DOI")
-                    .and_then(|v| v.as_str())
-                    .map(|v| v.to_string());
-
-                let award = map
-                    .get("award")
-                    .and_then(|v| v.as_array())
-                    .map(|v| v.iter().map(|v| v.as_str().unwrap().to_string()).collect());
-
-                let doi_asserted_by = map
-                    .get("doi-asserted-by")
-                    .and_then(|v| v.as_str())
-                    .map(|v| v.to_string());
-
-                Ok(FundingBody {
-                    name,
-                    doi,
-                    award,
-                    doi_asserted_by,
-                })
-            }
-            _ => Err(Error::InvalidMessageType {
-                name: value.to_string(),
-            })?,
-        }
-    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
@@ -766,52 +270,6 @@ pub struct ClinicalTrialNumber {
     /// One of `preResults`, `results` or `postResults`
     #[serde(rename = "type")]
     pub type_: Option<String>,
-}
-
-impl TryFrom<serde_json::Value> for ClinicalTrialNumber {
-    type Error = Error;
-
-    fn try_from(value: serde_json::Value) -> std::result::Result<Self, Self::Error> {
-        match value {
-            Value::Object(map) => {
-                let clinical_trial_number = map
-                    .get("clinical-trial-number")
-                    .ok_or(Error::MissingField {
-                        msg: "clinical-trial-number".to_string(),
-                    })?
-                    .as_str()
-                    .ok_or(Error::InvalidTypeName {
-                        name: "clinical-trial-number".to_string(),
-                    })?
-                    .to_string();
-
-                let registry = map
-                    .get("registry")
-                    .ok_or(Error::MissingField {
-                        msg: "registry".to_string(),
-                    })?
-                    .as_str()
-                    .ok_or(Error::InvalidTypeName {
-                        name: "registry".to_string(),
-                    })?
-                    .to_string();
-
-                let type_ = map
-                    .get("type")
-                    .and_then(|v| v.as_str())
-                    .map(|v| v.to_string());
-
-                Ok(ClinicalTrialNumber {
-                    clinical_trial_number,
-                    registry,
-                    type_,
-                })
-            }
-            _ => Err(Error::InvalidMessageType {
-                name: value.to_string(),
-            })?,
-        }
-    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
@@ -832,117 +290,13 @@ pub struct Contributor {
     pub sequence: String
 }
 
-impl TryFrom<serde_json::Value> for Contributor {
-    type Error = Error;
-
-    fn try_from(value: serde_json::Value) -> std::result::Result<Self, Self::Error> {
-        match value {
-            Value::Object(map) => {
-
-                let prefix = map
-                    .get("prefix")
-                    .and_then(|v| v.as_str())
-                    .map(|v| v.to_string());
-
-                let suffix = map
-                    .get("suffix")
-                    .and_then(|v| v.as_str())
-                    .map(|v| v.to_string());
-
-
-
-                let family = map
-                    .get("family")
-                    .and_then(|v| v.as_str())
-                    .map(|v| v.to_string());
-
-                let given = map
-                    .get("given")
-                    .and_then(|v| v.as_str())
-                    .map(|v| v.to_string());
-
-                let name = map
-                    .get("name")
-                    .and_then(|v| v.as_str())
-                    .map(|v| v.to_string());
-
-                let orcid = map
-                    .get("ORCID")
-                    .and_then(|v| v.as_str())
-                    .map(|v| v.to_string());
-
-                let authenticated_orcid = map
-                    .get("authenticated-orcid")
-                    .and_then(|v| v.as_bool());
-
-                let affiliation = map.get("affiliation").and_then(|v| v.as_array()).ok_or(
-                    Error::MissingField {
-                        msg: "affiliation".to_string(),
-                    },
-                ).map(|v| {
-                    v.iter()
-                        .map(|v| Affiliation::try_from(v.clone()).unwrap())
-                        .collect()
-                })?;
-
-                let sequence = map
-                    .get("sequence")
-                    .and_then(|v| v.as_str())
-                    .map(|v| v.to_string())
-                    .ok_or(Error::MissingField {
-                        msg: "sequence".to_string(),
-                    })?;
-
-                Ok(Contributor {
-                    prefix,
-                    suffix,
-                    family,
-                    given,
-                    name,
-                    orcid,
-                    authenticated_orcid,
-                    affiliation,
-                    sequence
-                })
-            }
-            _ => Err(Error::InvalidMessageType {
-                name: value.to_string(),
-            })?,
-        }
-    }
-}
-
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 #[allow(missing_docs)]
 pub struct Affiliation {
     /// the affiliation's name
-    pub name: String,
-}
-
-impl TryFrom<serde_json::Value> for Affiliation {
-    type Error = Error;
-
-    fn try_from(value: serde_json::Value) -> std::result::Result<Self, Self::Error> {
-        match value {
-            Value::Object(map) => {
-                let name = map
-                    .get("name")
-                    .ok_or(Error::MissingField {
-                        msg: "name".to_string(),
-                    })?
-                    .as_str()
-                    .ok_or(Error::InvalidTypeName {
-                        name: "name".to_string(),
-                    })?
-                    .to_string();
-
-                Ok(Affiliation { name })
-            }
-            _ => Err(Error::InvalidMessageType {
-                name: value.to_string(),
-            })?,
-        }
-    }
+    ///
+    /// Members occasionally deposit a bare `{}` affiliation.
+    pub name: Option<String>,
 }
 
 /// represents full date information for an item
@@ -957,57 +311,6 @@ pub struct Date {
     pub timestamp: usize,
     /// ISO 8601 date time
     pub date_time: String,
-}
-
-impl TryFrom<serde_json::Value> for Date {
-    type Error = Error;
-
-    fn try_from(value: serde_json::Value) -> std::result::Result<Self, Self::Error> {
-        match value {
-            Value::Object(map) => {
-                let date_parts = map.get("date-parts").and_then(|v| v.as_array()).map(|v| {
-                    // build a vector of vectors of three optional u32 values
-                    let date_parts = v
-                        .iter()
-                        .map(|v| {
-                            v.as_array()
-                                .unwrap()
-                                .iter()
-                                .map(|v| v.as_u64().map(|v| v as u32))
-                                .collect::<Vec<_>>()
-                        })
-                        .collect::<Vec<_>>();
-
-                    DateParts(date_parts)
-                });
-
-                let timestamp = map
-                    .get("timestamp")
-                    .and_then(|v| v.as_u64())
-                    .map(|v| v as usize)
-                    .ok_or(Error::MissingField {
-                        msg: "timestamp".to_string(),
-                    })?;
-
-                let date_time = map
-                    .get("date-time")
-                    .and_then(|v| v.as_str())
-                    .map(|v| v.to_string())
-                    .ok_or(Error::MissingField {
-                        msg: "date-time".to_string(),
-                    })?;
-
-                Ok(Date {
-                    date_parts: date_parts.unwrap(),
-                    timestamp,
-                    date_time,
-                })
-            }
-            _ => Err(Error::InvalidMessageType {
-                name: value.to_string(),
-            })?,
-        }
-    }
 }
 
 impl Date {
@@ -1051,39 +354,6 @@ pub struct PartialDate {
     /// e.g. `[ [`2006`] ]` to conform to citeproc JSON dates
     #[serde(rename = "date-parts")]
     pub date_parts: DateParts,
-}
-
-impl TryFrom<serde_json::Value> for PartialDate {
-    type Error = Error;
-
-    fn try_from(value: serde_json::Value) -> std::result::Result<Self, Self::Error> {
-        match value {
-            Value::Object(map) => {
-                let date_parts = map.get("date-parts").and_then(|v| v.as_array()).map(|v| {
-                    // build a vector of vectors of three optional u32 values
-                    let date_parts = v
-                        .iter()
-                        .map(|v| {
-                            v.as_array()
-                                .unwrap()
-                                .iter()
-                                .map(|v| v.as_u64().map(|v| v as u32))
-                                .collect::<Vec<_>>()
-                        })
-                        .collect::<Vec<_>>();
-
-                    DateParts(date_parts)
-                });
-
-                Ok(PartialDate {
-                    date_parts: date_parts.unwrap(),
-                })
-            }
-            _ => Err(Error::InvalidMessageType {
-                name: value.to_string(),
-            })?,
-        }
-    }
 }
 
 impl PartialDate {
@@ -1134,52 +404,6 @@ pub struct Update {
     pub label: Option<String>,
 }
 
-impl TryFrom<serde_json::Value> for Update {
-    type Error = Error;
-
-    fn try_from(value: serde_json::Value) -> std::result::Result<Self, Self::Error> {
-        match value {
-            Value::Object(map) => {
-                let updated = map
-                    .get("updated")
-                    .and_then(|v| v.as_object())
-                    .map(|v| PartialDate::try_from(Value::Object(v.clone())).unwrap());
-
-                let doi = map
-                    .get("DOI")
-                    .and_then(|v| v.as_str())
-                    .map(|v| v.to_string())
-                    .ok_or(Error::MissingField {
-                        msg: "DOI".to_string(),
-                    })?;
-
-                let type_ = map
-                    .get("type")
-                    .and_then(|v| v.as_str())
-                    .map(|v| v.to_string())
-                    .ok_or(Error::MissingField {
-                        msg: "type".to_string(),
-                    })?;
-
-                let label = map
-                    .get("label")
-                    .and_then(|v| v.as_str())
-                    .map(|v| v.to_string());
-
-                Ok(Update {
-                    updated: updated.unwrap(),
-                    doi,
-                    type_,
-                    label,
-                })
-            }
-            _ => Err(Error::InvalidMessageType {
-                name: value.to_string(),
-            })?,
-        }
-    }
-}
-
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 #[allow(missing_docs)]
 pub struct Assertion {
@@ -1187,68 +411,27 @@ pub struct Assertion {
     pub value: Option<String>,
     #[serde(rename = "URL")]
     pub url: Option<String>,
-    pub explanation: Option<String>,
+    pub explanation: Option<Explanation>,
     pub label: Option<String>,
     pub order: Option<i32>,
     pub group: Option<AssertionGroup>,
 }
 
-impl TryFrom<serde_json::Value> for Assertion {
-    type Error = Error;
-
-    fn try_from(value: serde_json::Value) -> std::result::Result<Self, Self::Error> {
-        match value {
-            Value::Object(map) => {
-                let name = map
-                    .get("name")
-                    .and_then(|v| v.as_str())
-                    .map(|v| v.to_string())
-                    .ok_or(Error::MissingField {
-                        msg: "name".to_string(),
-                    })?;
-
-                let value = map
-                    .get("value")
-                    .and_then(|v| v.as_str())
-                    .map(|v| v.to_string());
-
-                let url = map
-                    .get("URL")
-                    .and_then(|v| v.as_str())
-                    .map(|v| v.to_string());
-
-                let explanation = map
-                    .get("explanation")
-                    .and_then(|v| v.as_str())
-                    .map(|v| v.to_string());
-
-                let label = map
-                    .get("label")
-                    .and_then(|v| v.as_str())
-                    .map(|v| v.to_string());
-
-                let order = map.get("order").and_then(|v| v.as_i64()).map(|v| v as i32);
-
-                let group = map
-                    .get("group")
-                    .and_then(|v| v.as_object())
-                    .map(|v| AssertionGroup::try_from(Value::Object(v.clone())).unwrap());
-
-                Ok(Assertion {
-                    name,
-                    value,
-                    url,
-                    explanation,
-                    label,
-                    order,
-                    group,
-                })
-            }
-            _ => Err(Error::InvalidMessageType {
-                name: value.to_string(),
-            })?,
-        }
-    }
+/// why a Crossmark assertion holds
+///
+/// Crossref deposits this either as free text or as a link to a page that
+/// explains it, so both shapes have to be accepted.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(untagged)]
+pub enum Explanation {
+    /// a link to a page describing the assertion
+    Url {
+        /// the link target
+        #[serde(rename = "URL")]
+        url: String,
+    },
+    /// the explanation as free text
+    Text(String),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
@@ -1263,73 +446,11 @@ pub struct Issue {
     pub issue: Option<String>,
 }
 
-impl TryFrom<serde_json::Value> for Issue {
-    type Error = Error;
-
-    fn try_from(value: serde_json::Value) -> std::result::Result<Self, Self::Error> {
-        match value {
-            Value::Object(map) => {
-                let published_print = map
-                    .get("published-print")
-                    .and_then(|v| v.as_object())
-                    .map(|v| PartialDate::try_from(Value::Object(v.clone())).unwrap());
-
-                let published_online = map
-                    .get("published-online")
-                    .and_then(|v| v.as_object())
-                    .map(|v| PartialDate::try_from(Value::Object(v.clone())).unwrap());
-
-                let issue = map
-                    .get("issue")
-                    .and_then(|v| v.as_str())
-                    .map(|v| v.to_string());
-
-                Ok(Issue {
-                    published_print,
-                    published_online,
-                    issue,
-                })
-            }
-            _ => Err(Error::InvalidMessageType {
-                name: value.to_string(),
-            })?,
-        }
-    }
-}
-
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 #[allow(missing_docs)]
 pub struct AssertionGroup {
     pub name: String,
     pub label: Option<String>,
-}
-
-impl TryFrom<serde_json::Value> for AssertionGroup {
-    type Error = Error;
-
-    fn try_from(value: serde_json::Value) -> std::result::Result<Self, Self::Error> {
-        match value {
-            Value::Object(map) => {
-                let name = map
-                    .get("name")
-                    .and_then(|v| v.as_str())
-                    .map(|v| v.to_string())
-                    .ok_or(Error::MissingField {
-                        msg: "name".to_string(),
-                    })?;
-
-                let label = map
-                    .get("label")
-                    .and_then(|v| v.as_str())
-                    .map(|v| v.to_string());
-
-                Ok(AssertionGroup { name, label })
-            }
-            _ => Err(Error::InvalidMessageType {
-                name: value.to_string(),
-            })?,
-        }
-    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
@@ -1348,62 +469,12 @@ pub struct License {
     /// Number of days between the publication date of the work and the start date of this license
     pub delay_in_days: i32,
     /// Date on which this license begins to take effect
-    pub start: PartialDate,
+    ///
+    /// A few members deposit a license with a url and delay but no start date.
+    pub start: Option<PartialDate>,
     /// Link to a web page describing this license
     #[serde(rename = "URL")]
     pub url: String,
-}
-
-impl TryFrom<serde_json::Value> for License {
-    type Error = Error;
-
-    fn try_from(value: serde_json::Value) -> std::result::Result<Self, Self::Error> {
-        match value {
-            Value::Object(map) => {
-                let content_version = map
-                    .get("content-version")
-                    .and_then(|v| v.as_str())
-                    .map(|v| v.to_string())
-                    .ok_or(Error::MissingField {
-                        msg: "content-version".to_string(),
-                    })?;
-
-                let delay_in_days = map
-                    .get("delay-in-days")
-                    .and_then(|v| v.as_i64())
-                    .map(|v| v as i32)
-                    .ok_or(Error::MissingField {
-                        msg: "delay-in-days".to_string(),
-                    })?;
-
-                let start = map
-                    .get("start")
-                    .and_then(|v| v.as_object())
-                    .map(|v| PartialDate::try_from(Value::Object(v.clone())).unwrap())
-                    .ok_or(Error::MissingField {
-                        msg: "start".to_string(),
-                    })?;
-
-                let url = map
-                    .get("URL")
-                    .and_then(|v| v.as_str())
-                    .map(|v| v.to_string())
-                    .ok_or(Error::MissingField {
-                        msg: "URL".to_string(),
-                    })?;
-
-                Ok(License {
-                    content_version,
-                    delay_in_days,
-                    start,
-                    url,
-                })
-            }
-            _ => Err(Error::InvalidMessageType {
-                name: value.to_string(),
-            })?,
-        }
-    }
 }
 
 /// metadata about a related resource
@@ -1419,55 +490,6 @@ pub struct ResourceLink {
     pub url: String,
     /// Content type (or MIME type) of the full-text object
     pub content_type: Option<String>,
-}
-
-impl TryFrom<serde_json::Value> for ResourceLink {
-    type Error = Error;
-
-    fn try_from(value: serde_json::Value) -> std::result::Result<Self, Self::Error> {
-        match value {
-            Value::Object(map) => {
-                let intended_application = map
-                    .get("intended-application")
-                    .and_then(|v| v.as_str())
-                    .map(|v| v.to_string())
-                    .ok_or(Error::MissingField {
-                        msg: "intended-application".to_string(),
-                    })?;
-
-                let content_version = map
-                    .get("content-version")
-                    .and_then(|v| v.as_str())
-                    .map(|v| v.to_string())
-                    .ok_or(Error::MissingField {
-                        msg: "content-version".to_string(),
-                    })?;
-
-                let url = map
-                    .get("URL")
-                    .and_then(|v| v.as_str())
-                    .map(|v| v.to_string())
-                    .ok_or(Error::MissingField {
-                        msg: "URL".to_string(),
-                    })?;
-
-                let content_type = map
-                    .get("content-type")
-                    .and_then(|v| v.as_str())
-                    .map(|v| v.to_string());
-
-                Ok(ResourceLink {
-                    intended_application,
-                    content_version,
-                    url,
-                    content_type,
-                })
-            }
-            _ => Err(Error::InvalidMessageType {
-                name: value.to_string(),
-            })?,
-        }
-    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
@@ -1502,151 +524,6 @@ pub struct Reference {
     pub isbn_type: Option<String>,
 }
 
-impl TryFrom<serde_json::Value> for Reference {
-    type Error = Error;
-
-    fn try_from(value: serde_json::Value) -> std::result::Result<Self, Self::Error> {
-        match value {
-            Value::Object(map) => {
-                let key = map
-                    .get("key")
-                    .and_then(|v| v.as_str())
-                    .map(|v| v.to_string())
-                    .ok_or(Error::MissingField {
-                        msg: "key".to_string(),
-                    })?;
-
-                let doi = map
-                    .get("DOI")
-                    .and_then(|v| v.as_str())
-                    .map(|v| v.to_string());
-
-                let doi_asserted_by = map
-                    .get("doi-asserted-by")
-                    .and_then(|v| v.as_str())
-                    .map(|v| v.to_string());
-
-                let issue = map
-                    .get("issue")
-                    .and_then(|v| v.as_str())
-                    .map(|v| v.to_string());
-
-                let first_page = map
-                    .get("first-page")
-                    .and_then(|v| v.as_str())
-                    .map(|v| v.to_string());
-
-                let volume = map
-                    .get("volume")
-                    .and_then(|v| v.as_str())
-                    .map(|v| v.to_string());
-
-                let edition = map
-                    .get("edition")
-                    .and_then(|v| v.as_str())
-                    .map(|v| v.to_string());
-
-                let component = map
-                    .get("component")
-                    .and_then(|v| v.as_str())
-                    .map(|v| v.to_string());
-
-                let standard_designator = map
-                    .get("standard-designator")
-                    .and_then(|v| v.as_str())
-                    .map(|v| v.to_string());
-
-                let standards_body = map
-                    .get("standards-body")
-                    .and_then(|v| v.as_str())
-                    .map(|v| v.to_string());
-
-                let author = map
-                    .get("author")
-                    .and_then(|v| v.as_str())
-                    .map(|v| v.to_string());
-
-                let year = map
-                    .get("year")
-                    .and_then(|v| v.as_str())
-                    .map(|v| v.to_string());
-
-                let unstructured = map
-                    .get("unstructured")
-                    .and_then(|v| v.as_str())
-                    .map(|v| v.to_string());
-
-                let journal_title = map
-                    .get("journal-title")
-                    .and_then(|v| v.as_str())
-                    .map(|v| v.to_string());
-
-                let article_title = map
-                    .get("article-title")
-                    .and_then(|v| v.as_str())
-                    .map(|v| v.to_string());
-
-                let series_title = map
-                    .get("series-title")
-                    .and_then(|v| v.as_str())
-                    .map(|v| v.to_string());
-
-                let volume_title = map
-                    .get("volume-title")
-                    .and_then(|v| v.as_str())
-                    .map(|v| v.to_string());
-
-                let issn = map
-                    .get("ISSN")
-                    .and_then(|v| v.as_str())
-                    .map(|v| v.to_string());
-
-                let issn_type = map
-                    .get("issn-type")
-                    .and_then(|v| v.as_str())
-                    .map(|v| v.to_string());
-
-                let isbn = map
-                    .get("ISBN")
-                    .and_then(|v| v.as_str())
-                    .map(|v| v.to_string());
-
-                let isbn_type = map
-                    .get("isbn-type")
-                    .and_then(|v| v.as_str())
-                    .map(|v| v.to_string());
-
-                Ok(Reference {
-                    key,
-                    doi,
-                    doi_asserted_by,
-                    issue,
-                    first_page,
-                    volume,
-                    edition,
-                    component,
-                    standard_designator,
-                    standards_body,
-                    author,
-                    year,
-                    unstructured,
-                    journal_title,
-                    article_title,
-                    series_title,
-                    volume_title,
-                    issn,
-                    issn_type,
-                    isbn,
-                    isbn_type,
-                })
-            }
-            _ => Err(Error::InvalidMessageType {
-                name: value.to_string(),
-            })?,
-        }
-    }
-}
-
 /// ISSN info for the `Work`
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
@@ -1658,73 +535,17 @@ pub struct ISSN {
     pub type_: String,
 }
 
-impl TryFrom<serde_json::Value> for ISSN {
-    type Error = Error;
-
-    fn try_from(value: serde_json::Value) -> std::result::Result<Self, Self::Error> {
-        match value {
-            Value::Object(map) => {
-                let value = map
-                    .get("value")
-                    .and_then(|v| v.as_str())
-                    .map(|v| v.to_string())
-                    .ok_or(Error::MissingField {
-                        msg: "value".to_string(),
-                    })?;
-
-                let type_ = map
-                    .get("type")
-                    .and_then(|v| v.as_str())
-                    .map(|v| v.to_string())
-                    .ok_or(Error::MissingField {
-                        msg: "type".to_string(),
-                    })?;
-
-                Ok(ISSN { value, type_ })
-            }
-            _ => Err(Error::InvalidMessageType {
-                name: value.to_string(),
-            })?,
-        }
-    }
-}
-
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
 #[allow(missing_docs)]
 pub struct ContentDomain {
     pub domain: Vec<String>,
+    /// whether the publisher restricts Crossmark usage to `domain`
+    ///
+    /// Omitted alongside an empty `domain` on a large share of works, where it
+    /// carries no meaning; treated as `false`.
+    #[serde(default)]
     pub crossmark_restriction: bool,
-}
-
-impl TryFrom<serde_json::Value> for ContentDomain {
-    type Error = Error;
-
-    fn try_from(value: serde_json::Value) -> std::result::Result<Self, Self::Error> {
-        match value {
-            Value::Object(map) => {
-                let domain = map
-                    .get("domain")
-                    .and_then(|v| v.as_array())
-                    .map(|v| v.iter().map(|v| v.as_str().unwrap().to_string()).collect());
-
-                let crossmark_restriction = map
-                    .get("crossmark-restriction")
-                    .and_then(|v| v.as_bool())
-                    .ok_or(Error::MissingField {
-                        msg: "crossmark-restriction".to_string(),
-                    })?;
-
-                Ok(ContentDomain {
-                    domain: domain.unwrap(),
-                    crossmark_restriction,
-                })
-            }
-            _ => Err(Error::InvalidMessageType {
-                name: value.to_string(),
-            })?,
-        }
-    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
@@ -1734,40 +555,6 @@ pub struct Relation {
     pub id_type: Option<String>,
     pub id: Option<String>,
     pub asserted_by: Option<String>,
-}
-
-impl TryFrom<serde_json::Value> for Relation {
-    type Error = Error;
-
-    fn try_from(value: serde_json::Value) -> std::result::Result<Self, Self::Error> {
-        match value {
-            Value::Object(map) => {
-                let id_type = map
-                    .get("id-type")
-                    .and_then(|v| v.as_str())
-                    .map(|v| v.to_string());
-
-                let id = map
-                    .get("id")
-                    .and_then(|v| v.as_str())
-                    .map(|v| v.to_string());
-
-                let asserted_by = map
-                    .get("asserted-by")
-                    .and_then(|v| v.as_str())
-                    .map(|v| v.to_string());
-
-                Ok(Relation {
-                    id_type,
-                    id,
-                    asserted_by,
-                })
-            }
-            _ => Err(Error::InvalidMessageType {
-                name: value.to_string(),
-            })?,
-        }
-    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]

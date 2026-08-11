@@ -117,16 +117,16 @@ impl ParamFragment for FacetCount {
 }
 
 impl CrossrefQueryParam for Vec<FacetCount> {
-    fn param_key(&self) -> Cow<'_, str> {
-        Cow::Borrowed("facet")
-    }
-
-    fn param_value(&self) -> Option<Cow<'_, str>> {
-        Some(Cow::Owned(
-            self.iter()
-                .map(ParamFragment::fragment)
-                .collect::<Vec<_>>()
-                .join(","),
-        ))
+    /// facets share the `facet` key and are concat with `,`
+    fn params(&self) -> Vec<(Cow<'_, str>, Cow<'_, str>)> {
+        vec![(
+            Cow::Borrowed("facet"),
+            Cow::Owned(
+                self.iter()
+                    .map(ParamFragment::fragment)
+                    .collect::<Vec<_>>()
+                    .join(","),
+            ),
+        )]
     }
 }
