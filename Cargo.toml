@@ -14,7 +14,7 @@ repository = "https://github.com/EmilLindfors/crossref-client"
 documentation = "https://docs.rs/crossref-client"
 keywords = ["crossref", "doi", "api-client", "bibliography"]
 categories = ["api-bindings", "science"]
-exclude = ["/.github", "/TODO.md"]
+exclude = ["/.github"]
 
 [dependencies]
 reqwest = { version = "0.13", features = ["json"] }

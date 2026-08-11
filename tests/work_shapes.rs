@@ -5,6 +5,12 @@
 //! real work sampled from the live api that the response types used to reject
 //! (or, before the hand-written parsers were replaced by serde derives, panic
 //! on) -- one page of a deep-paging crawl was lost per record.
+//!
+//! These pin the shapes known today, from a sample of 38 800 works, and the
+//! weekly live job re-checks only the records the api suite happens to touch.
+//! Crossref keeps adding fields and members keep depositing new gaps, so
+//! re-running a large `sample=100` sweep through [`Work`] every so often is
+//! still the way to catch the next new shape before a user does.
 
 use std::collections::BTreeMap;
 
