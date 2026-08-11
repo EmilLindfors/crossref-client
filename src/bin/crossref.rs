@@ -121,18 +121,12 @@ struct ClientOpts {
 
 impl ClientOpts {
     fn create_client(&self) -> crossref_client::Result<Crossref> {
-        let mut builder = Crossref::builder();
-
-        if let Some(agent) = &self.user_agent {
-            builder = builder.user_agent(agent);
-        }
-        if let Some(token) = &self.token {
-            builder = builder.token(token);
-        }
-        if let Some(polite) = &self.polite {
-            builder = builder.polite(polite);
-        }
-        builder.build()
+        Crossref::builder()
+            .user_agent(self.user_agent.as_deref())
+            .token(self.token.as_deref())
+            // set last so it wins over a bare `--user-agent`
+            .polite(self.polite.as_deref())
+            .build()
     }
 }
 

@@ -25,16 +25,21 @@ chrono = { version = "0.4", features = ["serde"] }
 async-iterator = "2.3"
 percent-encoding = "2.3"
 tracing = "0.1"
+tokio = { version = "1", features = ["time"] }
 clap = { version = "4.6", features = ["derive"], optional = true }
-tokio = { version = "1", features = ["macros", "rt-multi-thread"], optional = true }
 tracing-subscriber = { version = "0.3", features = ["env-filter"], optional = true }
 
 [dev-dependencies]
-tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "test-util"] }
 tracing-subscriber = "0.3"
 
 [features]
-cli = ["dep:clap", "dep:tokio", "dep:tracing-subscriber"]
+cli = [
+    "dep:clap",
+    "dep:tracing-subscriber",
+    "tokio/macros",
+    "tokio/rt-multi-thread",
+]
 
 [[bin]]
 name = "crossref"

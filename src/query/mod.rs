@@ -73,9 +73,9 @@ macro_rules! impl_common_query {
                 self
             }
 
-            /// set sort option to the query
-            pub fn sort(mut self, sort: Sort) -> Self {
-                self.sort = Some(sort);
+            /// Sort the results by a field, or by relevance if given [`None`].
+            pub fn sort(mut self, sort: impl Into<Option<Sort>>) -> Self {
+                self.sort = sort.into();
                 self
             }
 
@@ -90,9 +90,9 @@ macro_rules! impl_common_query {
                 self
             }
 
-            /// set order option to query
-            pub fn order(mut self, order: Order) -> Self {
-                self.order = Some(order);
+            /// Order the results, or leave the order to crossref if given [`None`].
+            pub fn order(mut self, order: impl Into<Option<Order>>) -> Self {
+                self.order = order.into();
                 self
             }
 
@@ -102,9 +102,12 @@ macro_rules! impl_common_query {
                 self
             }
 
-            /// set result control option to query
-            pub fn result_control(mut self, result_control: ResultControl) -> Self {
-                self.result_control = Some(result_control);
+            /// Limit the results, or take crossref's default page if given [`None`].
+            pub fn result_control(
+                mut self,
+                result_control: impl Into<Option<ResultControl>>,
+            ) -> Self {
+                self.result_control = result_control.into();
                 self
             }
         }

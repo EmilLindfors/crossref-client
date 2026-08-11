@@ -1,5 +1,6 @@
+use crate::limit::RateLimit;
 use crate::query::ResourceComponent;
-use crate::response::MessageType;
+use crate::response::{Failures, MessageType};
 use std::result;
 use thiserror::Error as ThisError;
 
@@ -60,6 +61,30 @@ pub enum Error {
         /// the underlying transport error
         #[from]
         reqwest: reqwest::Error,
+    },
+
+    /// crossref refused the request and said why
+    ///
+    /// Answered with a `400` and a `validation-failure` body, which is what an
+    /// unknown filter, sort field or field query produces.
+    #[error("crossref rejected the request: {failures}")]
+    ValidationFailure {
+        /// what crossref objected to
+        failures: Failures,
+    },
+
+    /// crossref kept answering `429` until the retry budget ran out
+    ///
+    /// The client paces itself against the limit crossref reports, so this
+    /// normally means requests are also being made outside it -- from another
+    /// process, or another [`Crossref`](crate::Crossref) built separately
+    /// rather than cloned.
+    #[error("crossref rate limited the request; gave up after {attempts} attempts")]
+    RateLimited {
+        /// how many times the request was sent
+        attempts: u32,
+        /// the budget crossref last reported
+        limit: RateLimit,
     },
 
     /// When no message was found but expected

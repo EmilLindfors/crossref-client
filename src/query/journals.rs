@@ -53,9 +53,9 @@ impl JournalsQuery {
         self
     }
 
-    /// set result control option to query
-    pub fn result_control(mut self, result_control: ResultControl) -> Self {
-        self.result_control = Some(result_control);
+    /// Limit the results, or take crossref's default page if given [`None`].
+    pub fn result_control(mut self, result_control: impl Into<Option<ResultControl>>) -> Self {
+        self.result_control = result_control.into();
         self
     }
 }

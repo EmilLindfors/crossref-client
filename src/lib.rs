@@ -267,6 +267,8 @@
 
 
 mod error;
+/// client side rate limiting
+pub mod limit;
 /// provides types to construct a specific query
 pub mod query;
 /// provides the response types of the crossref api
@@ -280,6 +282,9 @@ pub mod tdm;
 
 #[doc(inline)]
 pub use self::error::{Error, Result};
+
+#[doc(inline)]
+pub use self::limit::RateLimit;
 
 #[doc(inline)]
 pub use self::query::works::{
@@ -306,8 +311,10 @@ pub(crate) use self::response::{Message, Response};
 /// `async-iterator` directly.
 pub use async_iterator::Iterator as AsyncIterator;
 
+use crate::limit::{Limiter, retry_after};
 use crate::response::{MessageType, Prefix};
-use reqwest::Client;
+use reqwest::{Client, StatusCode};
+use std::sync::Arc;
 
 macro_rules! get_item {
     ($ident:ident, $value:expr, $got:expr) => {
@@ -342,13 +349,20 @@ macro_rules! impl_combined_works_query {
 }
 
 /// Struct for Crossref search API methods
+///
+/// Cloning is cheap and shares the connection pool and the rate limiter, so
+/// concurrent callers should clone one client rather than build several -- see
+/// [`Crossref::rate_limit`].
 #[derive(Debug, Clone)]
 pub struct Crossref {
     /// use another base url than `api.crossref.org`
-    pub base_url: String,
+    base_url: String,
     /// the reqwest client that handles the requests
-    pub client: Client,
-    //pub blocking_client: Arc<reqwest::blocking::Client>,
+    client: Client,
+    /// paces requests against the budget crossref grants, shared between clones
+    limiter: Arc<Limiter>,
+    /// how many times a `429` is retried before giving up
+    max_retries: u32,
 }
 
 impl Crossref {
@@ -359,6 +373,30 @@ impl Crossref {
     /// This is the same as `Crossref::builder()`.
     pub fn builder() -> CrossrefBuilder {
         CrossrefBuilder::new()
+    }
+
+    /// The url every route is appended to, `https://api.crossref.org` unless
+    /// [`CrossrefBuilder::base_url`] said otherwise.
+    pub fn base_url(&self) -> &str {
+        &self.base_url
+    }
+
+    /// The request budget crossref last reported for this client.
+    ///
+    /// Crossref sends the budget on every response and the client paces itself
+    /// against it, so before the first request this is the assumed
+    /// [`RateLimit::CONSERVATIVE`] (or whatever [`CrossrefBuilder::rate_limit`]
+    /// was given) and afterwards it is what crossref actually granted.
+    pub fn rate_limit(&self) -> RateLimit {
+        self.limiter.rate()
+    }
+
+    /// The pool crossref sorted the last request into, from `x-api-pool`.
+    ///
+    /// `polite` if [`CrossrefBuilder::polite`] worked, `plus` for a Plus token,
+    /// otherwise `public`. [`None`] before the first request.
+    pub fn api_pool(&self) -> Option<String> {
+        self.limiter.pool()
     }
 
     // generate all functions to query combined endpoints
@@ -374,20 +412,79 @@ impl Crossref {
     /// Fails if there was an error in reqwest executing the request [::reqwest::RequestBuilder::send]
     async fn get_response<T: CrossrefQuery>(&self, query: &T) -> Result<Response> {
         let url = query.to_url(&self.base_url)?;
-        tracing::debug!(%url, "crossref request");
-
-        let response = self.client.get(&url).send().await?;
+        let response = self.send(&url).await?;
 
         // crossref answers an unresolvable route with a plain-text body, which
         // would otherwise surface as an opaque deserialization failure
-        if response.status() == reqwest::StatusCode::NOT_FOUND {
+        if response.status() == StatusCode::NOT_FOUND {
             return Err(Error::ResourceNotFound {
                 resource: Box::new(query.clone().resource_component()),
             });
         }
 
-        let json: serde_json::Value = response.error_for_status()?.json().await?;
+        let json: serde_json::Value = Self::into_success(response).await?.json().await?;
         Response::try_from(json)
+    }
+
+    /// Sends a `GET`, pacing it against the rate limit and retrying a `429`.
+    ///
+    /// Waits for a slot from the shared [`Limiter`] first, then feeds the
+    /// budget crossref reports back into it. A `429` means the budget we
+    /// believed in was wrong, so the whole client backs off -- for as long as
+    /// `retry-after` asks, or exponentially from the reported interval -- and
+    /// the request is sent again up to [`CrossrefBuilder::max_retries`] times.
+    async fn send(&self, url: &str) -> Result<reqwest::Response> {
+        let mut attempt = 0u32;
+        loop {
+            self.limiter.acquire().await;
+            tracing::debug!(%url, attempt, "crossref request");
+
+            let response = self.client.get(url).send().await?;
+            self.limiter.observe(response.headers());
+
+            if response.status() != StatusCode::TOO_MANY_REQUESTS {
+                return Ok(response);
+            }
+
+            let limit = self.limiter.rate();
+            let delay = retry_after(response.headers())
+                .unwrap_or_else(|| limit.interval * 2u32.pow(attempt.min(5)));
+            self.limiter.back_off(delay);
+            attempt += 1;
+
+            if attempt > self.max_retries {
+                tracing::warn!(%url, attempt, "crossref rate limited, retries exhausted");
+                return Err(Error::RateLimited {
+                    attempts: attempt,
+                    limit,
+                });
+            }
+            tracing::debug!(%url, attempt, ?delay, "crossref rate limited, retrying");
+        }
+    }
+
+    /// Turns a non-success response into the error crossref described.
+    ///
+    /// Crossref answers a bad filter, sort field or field query with a `400`
+    /// and a `validation-failure` body naming what it did not recognise, which
+    /// [`reqwest::Response::error_for_status`] would throw away.
+    async fn into_success(response: reqwest::Response) -> Result<reqwest::Response> {
+        if response.status().is_success() {
+            return Ok(response);
+        }
+
+        // taken before the body is consumed, so the status is still reportable
+        // if the body turns out not to explain itself
+        let status = response.error_for_status_ref().expect_err("not a success");
+        let body = response.text().await.unwrap_or_default();
+
+        match serde_json::from_str::<Response>(&body) {
+            Ok(Response {
+                message: Some(Message::ValidationFailure(failures)),
+                ..
+            }) => Err(Error::ValidationFailure { failures }),
+            _ => Err(status.into()),
+        }
     }
 
     //fn get_response_blocking<T: CrossrefQuery>(&self, query: &T) -> Result<Response> {
@@ -669,7 +766,17 @@ impl Crossref {
 /// # Ok(())
 /// # }
 /// ```
-#[derive(Default)]
+/// Every setter accepts `Option`, so options that are themselves optional --
+/// a CLI flag, a config field -- can be passed straight through:
+///
+/// ```no_run
+/// # use crossref_client::Crossref;
+/// # fn run(email: Option<String>) -> Result<(), crossref_client::Error> {
+/// let client = Crossref::builder().polite(email.as_deref()).build()?;
+/// # Ok(())
+/// # }
+/// ```
+#[derive(Debug, Default)]
 pub struct CrossrefBuilder {
     /// [Good manners = more reliable service.](https://github.com/CrossRef/rest-api-doc#good-manners--more-reliable-service)
     ///
@@ -682,9 +789,17 @@ pub struct CrossrefBuilder {
     plus_token: Option<String>,
     /// use a different base url than `Crossref::BASE_URL` <https://api.crossref.org>
     base_url: Option<String>,
+    /// the budget to assume until crossref reports one
+    rate_limit: Option<RateLimit>,
+    /// how many times a `429` is retried
+    max_retries: Option<u32>,
 }
 
 impl CrossrefBuilder {
+    /// How many times a `429` is retried before [`Error::RateLimited`] is
+    /// returned, when the builder was not told otherwise.
+    const DEFAULT_MAX_RETRIES: u32 = 3;
+
     /// Constructs a new `CrossrefBuilder`.
     ///
     /// This is the same as `Crossref::builder()`.
@@ -696,30 +811,61 @@ impl CrossrefBuilder {
     /// [polite pool](https://api.crossref.org/swagger-ui/index.html#/Etiquette).
     ///
     /// Sends a `User-Agent` in the shape crossref asks for, e.g.
-    /// `crossref-client/0.2.0 (mailto:you@example.com)`. Anonymous requests share a
-    /// rate-limited pool and are the usual cause of `429` responses.
+    /// `crossref-client/0.2.0 (https://github.com/…; mailto:you@example.com)`.
+    /// Anonymous requests share a rate-limited pool and are the usual cause of
+    /// `429` responses; check where you landed with
+    /// [`Crossref::api_pool`].
     ///
     /// Use [`CrossrefBuilder::user_agent`] instead if you want to send your own
     /// application's name; include `mailto:<email>` in it to stay in the pool.
-    pub fn polite(mut self, email: &str) -> Self {
-        self.user_agent = Some(format!(
-            "{}/{} (mailto:{})",
-            env!("CARGO_PKG_NAME"),
-            env!("CARGO_PKG_VERSION"),
-            email
-        ));
+    pub fn polite<'a>(mut self, email: impl Into<Option<&'a str>>) -> Self {
+        if let Some(email) = email.into() {
+            self.user_agent = Some(format!(
+                "{}/{} ({}; mailto:{})",
+                env!("CARGO_PKG_NAME"),
+                env!("CARGO_PKG_VERSION"),
+                env!("CARGO_PKG_REPOSITORY"),
+                email
+            ));
+        }
         self
     }
 
     /// set the user agent directly
-    pub fn user_agent(mut self, user_agent: &str) -> Self {
-        self.user_agent = Some(user_agent.to_string());
+    pub fn user_agent<'a>(mut self, user_agent: impl Into<Option<&'a str>>) -> Self {
+        self.user_agent = user_agent.into().map(str::to_owned);
         self
     }
 
     /// set a crossref plus service  API token
-    pub fn token(mut self, token: &str) -> Self {
-        self.plus_token = Some(token.to_string());
+    pub fn token<'a>(mut self, token: impl Into<Option<&'a str>>) -> Self {
+        self.plus_token = token.into().map(str::to_owned);
+        self
+    }
+
+    /// Send requests somewhere other than `https://api.crossref.org`.
+    ///
+    /// Routes are appended verbatim, so the url must not end in a `/`. Mainly
+    /// useful for pointing the client at a mock or a proxy in tests.
+    pub fn base_url<'a>(mut self, base_url: impl Into<Option<&'a str>>) -> Self {
+        self.base_url = base_url.into().map(str::to_owned);
+        self
+    }
+
+    /// The request budget to assume until crossref reports its own.
+    ///
+    /// Defaults to [`RateLimit::CONSERVATIVE`]. Crossref sends the real budget
+    /// on every response and the client follows it from then on, so this only
+    /// paces the first few requests.
+    pub fn rate_limit(mut self, rate_limit: impl Into<Option<RateLimit>>) -> Self {
+        self.rate_limit = rate_limit.into();
+        self
+    }
+
+    /// How many times a `429` is retried before giving up with
+    /// [`Error::RateLimited`]. Defaults to 3; `0` disables retrying.
+    pub fn max_retries(mut self, max_retries: impl Into<Option<u32>>) -> Self {
+        self.max_retries = max_retries.into();
         self
     }
 
@@ -747,24 +893,19 @@ impl CrossrefBuilder {
             );
         }
         let client = reqwest::Client::builder()
-            .default_headers(headers.clone())
+            .default_headers(headers)
             .build()
             .map_err(|_| Error::Config {
                 msg: "failed to initialize TLS backend".to_string(),
             })?;
 
-        //let blocking_client = reqwest::blocking::Client::builder()
-        //    .default_headers(headers)
-        //    .build()
-        //    .map_err(|_| Error::Config {
-        //        msg: "failed to initialize TLS backend".to_string(),
-        //    })?;
-
         Ok(Crossref {
             base_url: self
                 .base_url
                 .unwrap_or_else(|| Crossref::BASE_URL.to_string()),
-            client, // blocking_client: Arc::new(blocking_client),
+            client,
+            limiter: Arc::new(Limiter::new(self.rate_limit.unwrap_or_default())),
+            max_retries: self.max_retries.unwrap_or(Self::DEFAULT_MAX_RETRIES),
         })
     }
 }

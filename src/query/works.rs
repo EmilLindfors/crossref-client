@@ -791,9 +791,10 @@ impl WorksQuery {
         WorksQuery::empty().query(query)
     }
 
-    /// add a new free form query
-    pub fn sample(mut self, len: usize) -> Self {
-        self.sample = Some(len);
+    /// Ask for `len` random works instead of a search, or for a search if
+    /// given [`None`]. Crossref ignores every other parameter when it is set.
+    pub fn sample(mut self, len: impl Into<Option<usize>>) -> Self {
+        self.sample = len.into();
         self
     }
 
@@ -853,15 +854,15 @@ impl WorksQuery {
         self
     }
 
-    /// set sort option to the query
-    pub fn sort(mut self, sort: Sort) -> Self {
-        self.sort = Some(sort);
+    /// Sort the results by a field, or by relevance if given [`None`].
+    pub fn sort(mut self, sort: impl Into<Option<Sort>>) -> Self {
+        self.sort = sort.into();
         self
     }
 
-    /// set order option to query
-    pub fn order(mut self, order: Order) -> Self {
-        self.order = Some(order);
+    /// Order the results, or leave the order to crossref if given [`None`].
+    pub fn order(mut self, order: impl Into<Option<Order>>) -> Self {
+        self.order = order.into();
         self
     }
 
@@ -889,9 +890,12 @@ impl WorksQuery {
         self.result_control = Some(WorkResultControl::new_cursor());
         self
     }
-    /// set result control option to query
-    pub fn result_control(mut self, result_control: WorkResultControl) -> Self {
-        self.result_control = Some(result_control);
+    /// Limit the results, or take crossref's default page if given [`None`].
+    pub fn result_control(
+        mut self,
+        result_control: impl Into<Option<WorkResultControl>>,
+    ) -> Self {
+        self.result_control = result_control.into();
         self
     }
 

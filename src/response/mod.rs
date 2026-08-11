@@ -562,17 +562,22 @@ impl TryFrom<serde_json::Value> for FacetItem {
   }
 }
 
-/// response item if a request could be processed
+/// everything crossref objected to in a rejected request
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Failures(Vec<Failure>);
 
 impl Failures {
-    /// checks if the response contains a failure
+    /// whether crossref listed no objection at all
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
     }
 
-    /// checks if the response contains a failure
+    /// the individual objections
+    pub fn as_slice(&self) -> &[Failure] {
+        &self.0
+    }
+
+    /// the message of the first objection about a malformed DOI, if any
     pub fn get_doi_error(&self) -> Option<String> {
         self.0
             .iter()
@@ -581,20 +586,34 @@ impl Failures {
     }
 }
 
-/// response item if a request could be processed
+impl fmt::Display for Failures {
+    /// Renders the objections as a `; ` separated list of their messages.
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        for (i, failure) in self.0.iter().enumerate() {
+            if i > 0 {
+                f.write_str("; ")?;
+            }
+            f.write_str(&failure.message)?;
+        }
+        Ok(())
+    }
+}
+
+/// a single thing crossref objected to in a rejected request
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct Failure {
-    /// identifier for a failue like `parameter-not-found`
+    /// identifier for the kind of objection, e.g. `filter-not-available`
     #[serde(rename = "type")]
-    type_: String,
-    /// value that caused the failure
-    value: String,
+    pub type_: String,
+    /// the value that caused the failure
+    pub value: String,
     /// the message from the server
     pub message: String,
 }
 
 impl Failure {
+    /// whether this objection is about a malformed DOI
     pub fn is_doi(&self) -> bool {
         self.type_ == "doi-not-valid"
     }
