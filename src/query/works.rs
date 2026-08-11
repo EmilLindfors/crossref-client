@@ -460,7 +460,7 @@ pub enum WorkListQuery {
     Works(WorksQuery),
     /// Target the corresponding `Works` of a specific `Component`
     Combined {
-        primary_component: Component,
+        primary_component: WorksComponent,
         ident: WorksIdentQuery,
     },
 }
@@ -520,12 +520,11 @@ impl CrossrefQuery for WorkListQuery {
                 primary_component,
                 ident,
             } => match primary_component {
-                Component::Funders => ResourceComponent::Funders(Funders::Works(ident)),
-                Component::Journals => ResourceComponent::Journals(Journals::Works(ident)),
-                Component::Members => ResourceComponent::Members(Members::Works(ident)),
-                Component::Prefixes => ResourceComponent::Prefixes(Prefixes::Works(ident)),
-                Component::Types => ResourceComponent::Types(Types::Works(ident)),
-                Component::Works => ResourceComponent::Works(Works::Query(ident.query)),
+                WorksComponent::Funders => ResourceComponent::Funders(Funders::Works(ident)),
+                WorksComponent::Journals => ResourceComponent::Journals(Journals::Works(ident)),
+                WorksComponent::Members => ResourceComponent::Members(Members::Works(ident)),
+                WorksComponent::Prefixes => ResourceComponent::Prefixes(Prefixes::Works(ident)),
+                WorksComponent::Types => ResourceComponent::Types(Types::Works(ident)),
             },
         }
     }
@@ -571,7 +570,7 @@ impl WorksIdentQuery {
 /// Trait to determine that the type can be used in a combined query
 pub trait WorksCombiner {
     /// the primary component of this type
-    fn primary_component() -> Component;
+    fn primary_component() -> WorksComponent;
 
     /// construct a new type
     fn ident_query(ident: WorksIdentQuery) -> Self;
@@ -599,8 +598,8 @@ macro_rules! impl_combiner {
     ($($name:ident,)*) => {
         $(
         impl WorksCombiner for $name {
-            fn primary_component() -> Component {
-                Component::$name
+            fn primary_component() -> WorksComponent {
+                WorksComponent::$name
             }
 
             fn ident_query(ident: WorksIdentQuery) -> Self {

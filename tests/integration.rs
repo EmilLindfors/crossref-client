@@ -6,8 +6,8 @@
 
 use crossref_client::query::ResultControl;
 use crossref_client::{
-    Crossref, Error, FieldQuery, JournalsQuery, Type, WorkElement, WorkResultControl, WorksFilter,
-    WorksIdentQuery, WorksQuery,
+    Crossref, Error, FieldQuery, JournalsQuery, LicensesQuery, Type, WorkElement,
+    WorkResultControl, WorksFilter, WorksIdentQuery, WorksQuery,
 };
 use std::future::Future;
 use std::sync::OnceLock;
@@ -166,6 +166,50 @@ fn journals_can_be_found_by_title() {
             .next()
             .expect("at least one journal");
         assert!(journal.title.contains("Economic Geography"));
+    });
+}
+
+#[test]
+fn licenses_can_be_listed_with_their_work_counts() {
+    api_test(|client| async move {
+        let licenses = client
+            .licenses(LicensesQuery::new("creative commons").result_control(ResultControl::Rows(5)))
+            .await
+            .expect("a license list");
+
+        assert_eq!(5, licenses.items.len());
+        assert!(licenses.items.iter().all(|l| l.work_count > 0));
+    });
+}
+
+#[test]
+fn the_peer_reviews_of_a_work_can_be_found_through_its_relations() {
+    api_test(|client| async move {
+        // an open-review journal registers each review as its own work, so the
+        // history is `relation.type:is-review-of` plus `relation.object:<doi>`
+        let reviews = client
+            .works(
+                WorksQuery::empty()
+                    .filter(WorksFilter::RelationType("is-review-of".to_string()))
+                    .filter(WorksFilter::RelationObject(
+                        "10.5194/egusphere-2026-890".to_string(),
+                    ))
+                    .result_control(WorkResultControl::Standard(ResultControl::Rows(20))),
+            )
+            .await
+            .expect("a work list");
+
+        assert!(
+            !reviews.items.is_empty(),
+            "both filters used to render as `:true` and match everything"
+        );
+        assert!(
+            reviews
+                .items
+                .iter()
+                .all(|work| work.review.is_some() && work.relation.is_some()),
+            "every hit is a review carrying its own metadata"
+        );
     });
 }
 

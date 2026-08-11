@@ -4,77 +4,24 @@ use crate::query::works::{WorksCombiner, WorksIdentQuery};
 use crate::query::{Component, CrossrefQuery, CrossrefQueryParam, CrossrefRoute, ResourceComponent, ResultControl, format_queries};
 use std::borrow::Cow;
 
-/// Used to construct a query that targets crossref `Journal` elements
-///
-/// # Example
-///
-/// ```no_run
-/// use crossref_client::{JournalsQuery, ResultControl};
-///
-/// let query = JournalsQuery::new("Economic Geography")
-///     .result_control(ResultControl::Rows(10));
-/// ```
-///
-/// `/journals` is the narrowest of the list routes: it takes free form query
-/// terms and paging, and rejects `filter`, `sort`, `order`, `facet`, `select`
-/// and `sample` with a `400`. The query type mirrors that rather than offering
-/// options the route cannot honour.
-#[derive(Debug, Clone, Default)]
-pub struct JournalsQuery {
-    /// search by non specific query
-    pub queries: Vec<String>,
-    /// limit the returned items and set an offset
+impl_terms_query!(
+    /// Used to construct a query that targets crossref `Journal` elements
     ///
-    /// Only `rows` and `offset` are supported by this route;
-    /// [`ResultControl::Sample`] is rejected by crossref with a `400`.
-    pub result_control: Option<ResultControl>,
-}
-
-impl JournalsQuery {
-    /// alias for creating an empty default element
-    pub fn empty() -> Self {
-        JournalsQuery::default()
-    }
-
-    /// Convenience method to create a new query with a term directly
-    pub fn new<T: ToString>(query: T) -> Self {
-        Self::empty().query(query)
-    }
-
-    /// add a new free form query
-    pub fn query<T: ToString>(mut self, query: T) -> Self {
-        self.queries.push(query.to_string());
-        self
-    }
-
-    /// add a bunch of free form query terms
-    pub fn queries<T: ToString>(mut self, queries: &[T]) -> Self {
-        self.queries.extend(queries.iter().map(T::to_string));
-        self
-    }
-
-    /// Limit the results, or take crossref's default page if given [`None`].
-    pub fn result_control(mut self, result_control: impl Into<Option<ResultControl>>) -> Self {
-        self.result_control = result_control.into();
-        self
-    }
-}
-
-impl CrossrefRoute for JournalsQuery {
-    fn route(&self) -> Result<String> {
-        let mut params: Vec<(Cow<'_, str>, Cow<'_, str>)> = Vec::new();
-        if !self.queries.is_empty() {
-            params.push((
-                Cow::Borrowed("query"),
-                Cow::Owned(format_queries(&self.queries)),
-            ));
-        }
-        if let Some(rc) = &self.result_control {
-            params.extend(rc.params());
-        }
-        Ok(encode::query_string(&params))
-    }
-}
+    /// # Example
+    ///
+    /// ```no_run
+    /// use crossref_client::{JournalsQuery, ResultControl};
+    ///
+    /// let query = JournalsQuery::new("Economic Geography")
+    ///     .result_control(ResultControl::Rows(10));
+    /// ```
+    ///
+    /// `/journals` is one of the narrowest list routes: it takes free form
+    /// query terms and paging, and rejects `filter`, `sort`, `order`, `facet`,
+    /// `select` and `sample` with a `400`. The query type mirrors that rather
+    /// than offering options the route cannot honour.
+    JournalsQuery
+);
 
 /// constructs the request payload for the `/journals` route
 #[derive(Debug, Clone)]

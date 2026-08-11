@@ -10,6 +10,7 @@
 //! * `prefixes` - `/prefixes` route
 //! * `funders` - `/funders` route
 //! * `journals` - `/journals` route
+//! * `licenses` - `/licenses` route
 //! * `types` - `/types` route
 //! * `agency` - `/works/{doi}/agency` get DOI minting agency
 //!
@@ -296,7 +297,8 @@ pub use self::query::works::{
 pub use self::query::{Component, CrossrefQuery, CrossrefRoute, Order, ResultControl, Sort};
 pub use self::query::facet::{Facet, FacetCount};
 pub use self::query::{
-    Funders, FundersQuery, Journals, JournalsQuery, Members, MembersQuery, Prefixes, Type, Types,
+    Funders, FundersQuery, Journals, JournalsQuery, Licenses, LicensesQuery, Members, MembersQuery,
+    Prefixes, Type, Types, WorksComponent,
 };
 pub use self::response::{
     CrossrefType, Failure, Failures, Funder, FunderList, Journal, JournalList, LicenseCount,
@@ -724,6 +726,30 @@ impl Crossref {
     pub async fn journals(&self, journals: JournalsQuery) -> Result<JournalList> {
         let resp = self.get_response(&Journals::Query(journals)).await?;
         get_item!(JournalList, resp)
+    }
+
+    /// Return the licenses works in the crossref metadata are published under,
+    /// each with the number of works that carry it.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use crossref_client::{Crossref, LicensesQuery, ResultControl};
+    /// # async fn run() -> Result<(), crossref_client::Error> {
+    /// # let client = Crossref::builder().build()?;
+    /// let licenses = client
+    ///     .licenses(LicensesQuery::new("creative commons").result_control(ResultControl::Rows(10)))
+    ///     .await?;
+    ///
+    /// for license in &licenses.items {
+    ///     println!("{:>8} {}", license.work_count, license.url);
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub async fn licenses(&self, licenses: LicensesQuery) -> Result<LicenseList> {
+        let resp = self.get_response(&Licenses::Query(licenses)).await?;
+        get_item!(LicenseList, resp)
     }
 
     /// Return all available `Type`

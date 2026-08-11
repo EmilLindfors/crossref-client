@@ -2,6 +2,7 @@ use crate::error::Result;
 use crate::query::facet::FacetCount;
 pub use crate::query::funders::{Funders, FundersQuery};
 pub use crate::query::journals::{Journals, JournalsQuery};
+pub use crate::query::licenses::{Licenses, LicensesQuery};
 pub use crate::query::members::{Members, MembersQuery};
 pub use crate::query::prefixes::Prefixes;
 pub use crate::query::types::{Type, Types};
@@ -297,6 +298,74 @@ macro_rules! define_filter {
     };
 }
 
+/// Defines a query for a route that takes free form terms and paging and
+/// nothing else -- `/journals` and `/licenses` both reject `filter`, `sort`,
+/// `order`, `facet`, `select` and `sample` with a `400`.
+macro_rules! impl_terms_query {
+    ($(#[$meta:meta])* $name:ident) => {
+        $(#[$meta])*
+        #[derive(Debug, Clone, Default, PartialEq, Eq)]
+        pub struct $name {
+            /// search by non specific query
+            pub queries: Vec<String>,
+            /// limit the returned items and set an offset
+            ///
+            /// Only `rows` and `offset` are supported by this route;
+            /// [`ResultControl::Sample`] is rejected by crossref with a `400`.
+            pub result_control: Option<ResultControl>,
+        }
+
+        impl $name {
+            /// alias for creating an empty default element
+            pub fn empty() -> Self {
+                Self::default()
+            }
+
+            /// Convenience method to create a new query with a term directly
+            pub fn new<T: ToString>(query: T) -> Self {
+                Self::empty().query(query)
+            }
+
+            /// add a new free form query
+            pub fn query<T: ToString>(mut self, query: T) -> Self {
+                self.queries.push(query.to_string());
+                self
+            }
+
+            /// add a bunch of free form query terms
+            pub fn queries<T: ToString>(mut self, queries: &[T]) -> Self {
+                self.queries.extend(queries.iter().map(T::to_string));
+                self
+            }
+
+            /// Limit the results, or take crossref's default page if given [`None`].
+            pub fn result_control(
+                mut self,
+                result_control: impl Into<Option<ResultControl>>,
+            ) -> Self {
+                self.result_control = result_control.into();
+                self
+            }
+        }
+
+        impl CrossrefRoute for $name {
+            fn route(&self) -> Result<String> {
+                let mut params: Vec<(Cow<'_, str>, Cow<'_, str>)> = Vec::new();
+                if !self.queries.is_empty() {
+                    params.push((
+                        Cow::Borrowed("query"),
+                        Cow::Owned(format_queries(&self.queries)),
+                    ));
+                }
+                if let Some(rc) = &self.result_control {
+                    params.extend(rc.params());
+                }
+                Ok(encode::query_string(&params))
+            }
+        }
+    };
+}
+
 /// Defines an enum of crossref identifiers together with the list of them, so
 /// a coverage test can check the list against what the api reports.
 macro_rules! define_keyed_enum {
@@ -393,7 +462,9 @@ pub mod facet;
 pub mod funders;
 /// provides support to query the `/funders` route
 pub mod journals;
-/// provides support to query the `/journals` route
+/// provides support to query the `/licenses` route
+pub mod licenses;
+/// provides support to query the `/members` route
 pub mod members;
 /// provides support to query the `/members` route
 pub mod prefixes;
@@ -539,7 +610,7 @@ impl CrossrefQueryParam for Sort {
 }
 
 /// tells crossref how many items shall be returned or where to start
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ResultControl {
     /// limits the returned items per page
     Rows(usize),
@@ -576,21 +647,23 @@ impl CrossrefQueryParam for ResultControl {
 }
 
 /// Major resource components supported by the Crossref API
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Component {
-    /// returns a list of all works (journal articles, conference proceedings, books, components, etc), 20 per page
+    /// a list of all works (journal articles, conference proceedings, books, components, etc), 20 per page
     Works,
-    /// returns a list of all funders in the [Funder Registry](https://github.com/Crossref/open-funder-registry)
+    /// a list of all funders in the [Funder Registry](https://github.com/Crossref/open-funder-registry)
     Funders,
-    /// returns a list of all Crossref members (mostly publishers)
+    /// a list of DOI owner prefixes
     Prefixes,
-    /// returns a list of valid work types
+    /// a list of all Crossref members (mostly publishers)
     Members,
-    /// return a list of licenses applied to works in Crossref metadata
+    /// a list of valid work types
     Types,
-    /// return a list of journals in the Crossref database
+    /// a list of journals in the Crossref database
     Journals,
+    /// a list of the licenses works in the Crossref metadata are published under
+    Licenses,
 }
 
 impl Component {
@@ -603,6 +676,7 @@ impl Component {
             Component::Members => "members",
             Component::Types => "types",
             Component::Journals => "journals",
+            Component::Licenses => "licenses",
         }
     }
 }
@@ -613,22 +687,60 @@ impl CrossrefRoute for Component {
     }
 }
 
+/// The components that also expose their works at `/{component}/{id}/works`.
+///
+/// A narrower [`Component`]: `/works` has no such sub-route of its own, and
+/// neither does `/licenses`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum WorksComponent {
+    /// works of one funder, at `/funders/{id}/works`
+    Funders,
+    /// works of one DOI prefix, at `/prefixes/{id}/works`
+    Prefixes,
+    /// works of one member, at `/members/{id}/works`
+    Members,
+    /// works of one type, at `/types/{id}/works`
+    Types,
+    /// works of one journal, at `/journals/{issn}/works`
+    Journals,
+}
+
+impl WorksComponent {
+    /// the route this component owns
+    pub fn component(&self) -> Component {
+        match self {
+            WorksComponent::Funders => Component::Funders,
+            WorksComponent::Prefixes => Component::Prefixes,
+            WorksComponent::Members => Component::Members,
+            WorksComponent::Types => Component::Types,
+            WorksComponent::Journals => Component::Journals,
+        }
+    }
+}
+
+impl CrossrefRoute for WorksComponent {
+    fn route(&self) -> Result<String> {
+        self.component().route()
+    }
+}
+
 /// bundles all available crossref api endpoints
 #[derive(Debug, Clone)]
 pub enum ResourceComponent {
-    /// returns a list of all works (journal articles, conference proceedings, books, components, etc), 20 per page
+    /// the `/works` route
     Works(Works),
-    /// returns a list of all funders in the [Funder Registry](https://github.com/Crossref/open-funder-registry)
+    /// the `/funders` route
     Funders(Funders),
-    /// returns a list of all Crossref members (mostly publishers)
+    /// the `/prefixes` route
     Prefixes(Prefixes),
-    /// returns a list of valid work types
+    /// the `/members` route
     Members(Members),
-    /// return a list of licenses applied to works in Crossref metadata
+    /// the `/types` route
     Types(Types),
-    /// return a list of journals in the Crossref database
+    /// the `/journals` route
     Journals(Journals),
-    
+    /// the `/licenses` route
+    Licenses(Licenses),
 }
 
 impl ResourceComponent {
@@ -641,6 +753,7 @@ impl ResourceComponent {
             ResourceComponent::Members(_) => Component::Members,
             ResourceComponent::Types(_) => Component::Types,
             ResourceComponent::Journals(_) => Component::Journals,
+            ResourceComponent::Licenses(_) => Component::Licenses,
         }
     }
 }
@@ -660,6 +773,7 @@ impl CrossrefRoute for ResourceComponent {
             ResourceComponent::Members(c) => c.route(),
             ResourceComponent::Types(c) => c.route(),
             ResourceComponent::Journals(c) => c.route(),
+            ResourceComponent::Licenses(c) => c.route(),
         }
     }
 }
