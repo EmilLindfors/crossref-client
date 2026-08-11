@@ -290,13 +290,31 @@ pub struct Contributor {
     pub sequence: String
 }
 
+/// an institution a contributor is affiliated with
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
-#[allow(missing_docs)]
 pub struct Affiliation {
     /// the affiliation's name
     ///
     /// Members occasionally deposit a bare `{}` affiliation.
     pub name: Option<String>,
+    /// identifiers for the institution, in practice [ROR](https://ror.org) ids
+    ///
+    /// How crossref now models affiliations; select works that carry one with
+    /// [`WorksFilter::HasAffiliationRorId`](crate::WorksFilter::HasAffiliationRorId).
+    #[serde(default)]
+    pub id: Vec<InstitutionId>,
+}
+
+/// an identifier for an institution, as deposited on an [`Affiliation`]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct InstitutionId {
+    /// the identifier itself, e.g. `https://ror.org/00hx57361`
+    pub id: String,
+    /// what kind of identifier it is, in practice always `ROR`
+    pub id_type: Option<String>,
+    /// either `crossref` or `publisher`
+    pub asserted_by: Option<String>,
 }
 
 /// represents full date information for an item

@@ -4,35 +4,18 @@ use crate::query::works::{WorksCombiner, WorksIdentQuery};
 use crate::query::*;
 use std::borrow::Cow;
 
-/// filters supported for the /funders route
-#[derive(Debug, Clone)]
-pub enum FundersFilter {
-    /// funders located in specified country
-    Location(String),
+define_filter! {
+/// Narrows a `/funders` query.
+///
+/// `location` is the only filter this route accepts. It used to also sit on
+/// [`WorksFilter`](crate::WorksFilter), where `/works` rejected it with a `400`.
+FundersFilter;
+markers {}
+values {
+    /// funders located in the named country
+    Location(String) => "location",
 }
-
-impl FundersFilter {
-    /// the key name for the filter element
-    pub fn name(&self) -> &str {
-        match self {
-            FundersFilter::Location(_) => "location",
-        }
-    }
 }
-
-impl ParamFragment for FundersFilter {
-    fn key(&self) -> Cow<'_, str> {
-        Cow::Borrowed(self.name())
-    }
-
-    fn value(&self) -> Option<Cow<'_, str>> {
-        match self {
-            FundersFilter::Location(s) => Some(Cow::Borrowed(s.as_str())),
-        }
-    }
-}
-
-impl Filter for FundersFilter {}
 
 impl_common_query!(FundersQuery, FundersFilter);
 

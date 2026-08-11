@@ -165,6 +165,226 @@ macro_rules! impl_common_query {
     };
 }
 
+/// How a filter's payload renders inside a `filter` fragment.
+///
+/// Implemented for the handful of types a filter can carry, so
+/// [`define_filter!`] can render every variant without a per-type match arm --
+/// the catch-all arm that used to do that job silently turned
+/// `WorksFilter::AlternativeId(id)` into `alternative-id:true`.
+pub(crate) trait FilterValue {
+    /// the value as it appears after the `:`
+    fn render(&self) -> Cow<'_, str>;
+
+    /// a value of this type, for the filter coverage tests
+    #[cfg(test)]
+    fn sample() -> Self
+    where
+        Self: Sized;
+}
+
+impl FilterValue for String {
+    fn render(&self) -> Cow<'_, str> {
+        Cow::Borrowed(self)
+    }
+
+    #[cfg(test)]
+    fn sample() -> Self {
+        "sample".to_string()
+    }
+}
+
+impl FilterValue for i32 {
+    fn render(&self) -> Cow<'_, str> {
+        Cow::Owned(self.to_string())
+    }
+
+    #[cfg(test)]
+    fn sample() -> Self {
+        1
+    }
+}
+
+impl FilterValue for u64 {
+    fn render(&self) -> Cow<'_, str> {
+        Cow::Owned(self.to_string())
+    }
+
+    #[cfg(test)]
+    fn sample() -> Self {
+        1
+    }
+}
+
+impl FilterValue for chrono::NaiveDate {
+    fn render(&self) -> Cow<'_, str> {
+        Cow::Owned(self.format("%Y-%m-%d").to_string())
+    }
+
+    #[cfg(test)]
+    fn sample() -> Self {
+        chrono::NaiveDate::default()
+    }
+}
+
+impl FilterValue for types::Type {
+    fn render(&self) -> Cow<'_, str> {
+        Cow::Borrowed(self.id())
+    }
+
+    #[cfg(test)]
+    fn sample() -> Self {
+        types::Type::JournalArticle
+    }
+}
+
+/// Defines a route's filter enum together with everything that has to stay in
+/// step with it: the key each variant renders under, how its payload renders,
+/// and -- for the coverage tests -- one value of every variant.
+///
+/// Marker filters carry no payload and render as `key:true`; value filters
+/// carry one, whose type implements [`FilterValue`].
+macro_rules! define_filter {
+    (
+        $(#[$meta:meta])*
+        $name:ident;
+        markers { $($(#[$m_doc:meta])* $m_variant:ident => $m_key:literal,)* }
+        values  { $($(#[$v_doc:meta])* $v_variant:ident($v_ty:ty) => $v_key:literal,)* }
+    ) => {
+        $(#[$meta])*
+        #[derive(Debug, Clone, PartialEq, Eq)]
+        pub enum $name {
+            $($(#[$m_doc])* $m_variant,)*
+            $($(#[$v_doc])* $v_variant($v_ty),)*
+        }
+
+        impl $name {
+            /// the key this filter renders under in the query string
+            pub fn name(&self) -> &'static str {
+                match self {
+                    $($name::$m_variant => $m_key,)*
+                    $($name::$v_variant(_) => $v_key,)*
+                }
+            }
+
+            /// One of every variant, in declaration order.
+            #[cfg(test)]
+            pub(crate) fn one_of_each() -> Vec<Self> {
+                vec![
+                    $($name::$m_variant,)*
+                    $($name::$v_variant(
+                        <$v_ty as $crate::query::FilterValue>::sample()
+                    ),)*
+                ]
+            }
+        }
+
+        impl $crate::query::ParamFragment for $name {
+            fn key(&self) -> ::std::borrow::Cow<'_, str> {
+                ::std::borrow::Cow::Borrowed(self.name())
+            }
+
+            fn value(&self) -> Option<::std::borrow::Cow<'_, str>> {
+                match self {
+                    $($name::$m_variant => Some(::std::borrow::Cow::Borrowed("true")),)*
+                    $($name::$v_variant(value) => {
+                        Some($crate::query::FilterValue::render(value))
+                    })*
+                }
+            }
+        }
+
+        impl $crate::query::Filter for $name {}
+    };
+}
+
+/// Defines an enum of crossref identifiers together with the list of them, so
+/// a coverage test can check the list against what the api reports.
+macro_rules! define_keyed_enum {
+    (
+        $(#[$meta:meta])*
+        $name:ident { $($(#[$doc:meta])* $variant:ident => $key:literal,)* }
+    ) => {
+        $(#[$meta])*
+        #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+        pub enum $name {
+            $(
+                #[doc = concat!("the `", $key, "` field")]
+                $(#[$doc])*
+                $variant,
+            )*
+        }
+
+        impl $name {
+            /// the identifier crossref knows this by
+            pub fn name(&self) -> &'static str {
+                match self { $($name::$variant => $key,)* }
+            }
+
+            /// Every variant, in declaration order.
+            pub const ALL: &'static [$name] = &[$($name::$variant,)*];
+        }
+    };
+}
+
+/// Defines [`FieldQuery`](works::FieldQuery), the queries that match against
+/// one field of a work's metadata rather than all of it.
+///
+/// Each entry names the variant, the field crossref knows it by, and the
+/// lower-case constructor that saves callers an `into`.
+macro_rules! define_field_queries {
+    ($($(#[$doc:meta])* $variant:ident => $key:literal / $ctor:ident,)*) => {
+        /// Matches against one field of a work's metadata rather than all of
+        /// it. Available on the `/works` route only.
+        ///
+        /// ```
+        /// # use crossref_client::FieldQuery;
+        /// assert_eq!("query.author", FieldQuery::author("feynman").name());
+        /// ```
+        ///
+        /// Covers all 21 field queries `/works` accepts, which
+        /// `every_field_query_is_accepted_by_the_api` pins against what the api
+        /// reports.
+        #[derive(Debug, Clone, PartialEq, Eq)]
+        pub enum FieldQuery {
+            $(
+                #[doc = concat!("matches against `", $key, "`: ")]
+                $(#[$doc])*
+                $variant(String),
+            )*
+        }
+
+        impl FieldQuery {
+            /// the key this renders under in the query string, e.g. `query.author`
+            pub fn name(&self) -> &'static str {
+                match self { $(FieldQuery::$variant(_) => concat!("query.", $key),)* }
+            }
+
+            /// the field crossref knows this by, e.g. `author`
+            pub fn field(&self) -> &'static str {
+                match self { $(FieldQuery::$variant(_) => $key,)* }
+            }
+
+            /// the term being matched
+            pub fn value(&self) -> &str {
+                match self { $(FieldQuery::$variant(value) => value,)* }
+            }
+
+            /// One of every variant, in declaration order.
+            #[cfg(test)]
+            pub(crate) fn one_of_each() -> Vec<Self> {
+                vec![$(FieldQuery::$variant(String::from("sample")),)*]
+            }
+
+            $(
+                #[doc = concat!("a query against `", $key, "`")]
+                pub fn $ctor(value: impl Into<String>) -> Self {
+                    FieldQuery::$variant(value.into())
+                }
+            )*
+        }
+    };
+}
+
 /// percent-encoding of the crossref query string
 pub(crate) mod encode;
 /// provides types to filter facets
@@ -547,9 +767,42 @@ pub(crate) fn format_queries<T: AsRef<str>>(topics: &[T]) -> String {
         .join(" ")
 }
 
+/// Pins this crate's idea of a route's vocabulary against crossref's.
+///
+/// Crossref answers an unrecognised filter, sort field, field query or `select`
+/// element with a `400` that lists the ones it does know, so the lists below
+/// are copied from those responses. Checking both directions catches a name
+/// this crate would send and crossref would reject, *and* one crossref accepts
+/// that this crate cannot express.
+#[cfg(test)]
+fn assert_matches_api(kind: &str, ours: &[&str], api: &[&str]) {
+    use std::collections::BTreeSet;
+
+    let mine: BTreeSet<&str> = ours.iter().copied().collect();
+    assert_eq!(ours.len(), mine.len(), "duplicate {kind} in this crate");
+
+    let theirs: BTreeSet<&str> = api.iter().copied().collect();
+    assert_eq!(api.len(), theirs.len(), "duplicate {kind} in the api list");
+
+    let rejected: Vec<_> = mine.difference(&theirs).collect();
+    assert!(
+        rejected.is_empty(),
+        "{kind} this crate sends that crossref answers with a 400: {rejected:?}"
+    );
+
+    let unreachable: Vec<_> = theirs.difference(&mine).collect();
+    assert!(
+        unreachable.is_empty(),
+        "{kind} crossref accepts that this crate cannot express: {unreachable:?}"
+    );
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::query::funders::FundersFilter;
+    use crate::query::members::MembersFilter;
+    use crate::query::works::{FieldQuery, WorkElement, WorksFilter};
 
     /// The set crossref reports in its `400` response for an unknown sort field.
     const API_SORT_FIELDS: &[&str] = &[
@@ -606,5 +859,254 @@ mod tests {
         for order in [Order::Asc, Order::Desc] {
             assert_eq!(Ok(order), Order::from_str(order.as_str()));
         }
+    }
+
+    /// The filters crossref reports for `/works`.
+    const API_WORKS_FILTERS: &[&str] = &[
+        "alternative-id",
+        "archive",
+        "article-number",
+        "assertion",
+        "assertion-group",
+        "award.funder",
+        "award.number",
+        "category-name",
+        "clinical-trial-number",
+        "container-title",
+        "content-domain",
+        "directory",
+        "doi",
+        "from-accepted-date",
+        "from-approved-date",
+        "from-awarded-date",
+        "from-created-date",
+        "from-deposit-date",
+        "from-event-end-date",
+        "from-event-start-date",
+        "from-index-date",
+        "from-issued-date",
+        "from-online-pub-date",
+        "from-posted-date",
+        "from-print-pub-date",
+        "from-pub-date",
+        "from-update-date",
+        "full-text.application",
+        "full-text.type",
+        "full-text.version",
+        "funder",
+        "funder-doi-asserted-by",
+        "group-title",
+        "gte-award-amount",
+        "has-abstract",
+        "has-affiliation",
+        "has-affiliation-ror-id",
+        "has-alias",
+        "has-archive",
+        "has-assertion",
+        "has-authenticated-orcid",
+        "has-award",
+        "has-clinical-trial-number",
+        "has-content-domain",
+        "has-domain-restriction",
+        "has-event",
+        "has-full-text",
+        "has-funder",
+        "has-funder-doi",
+        "has-funder-ror-id",
+        "has-license",
+        "has-orcid",
+        "has-prime-doi",
+        "has-references",
+        "has-relation",
+        "has-ror-id",
+        "has-update",
+        "has-update-policy",
+        "is-update",
+        "isbn",
+        "issn",
+        "license.delay",
+        "license.url",
+        "license.version",
+        "lte-award-amount",
+        "member",
+        "orcid",
+        "prefix",
+        "relation.object",
+        "relation.object-type",
+        "relation.type",
+        "ror-id",
+        "type",
+        "type-name",
+        "until-accepted-date",
+        "until-approved-date",
+        "until-awarded-date",
+        "until-created-date",
+        "until-deposit-date",
+        "until-event-end-date",
+        "until-event-start-date",
+        "until-index-date",
+        "until-issued-date",
+        "until-online-pub-date",
+        "until-posted-date",
+        "until-print-pub-date",
+        "until-pub-date",
+        "until-update-date",
+        "update-type",
+        "updates",
+    ];
+
+    /// The field queries crossref reports for `/works`.
+    const API_FIELD_QUERIES: &[&str] = &[
+        "affiliation",
+        "author",
+        "bibliographic",
+        "chair",
+        "container-title",
+        "contributor",
+        "degree",
+        "description",
+        "editor",
+        "event-acronym",
+        "event-location",
+        "event-name",
+        "event-sponsor",
+        "event-theme",
+        "funder-name",
+        "publisher-location",
+        "publisher-name",
+        "standards-body-acronym",
+        "standards-body-name",
+        "title",
+        "translator",
+    ];
+
+    /// The `select` elements crossref reports for `/works`.
+    const API_WORK_ELEMENTS: &[&str] = &[
+        "DOI",
+        "ISBN",
+        "ISSN",
+        "URL",
+        "abstract",
+        "accepted",
+        "alternative-id",
+        "approved",
+        "archive",
+        "article-number",
+        "assertion",
+        "author",
+        "chair",
+        "clinical-trial-number",
+        "container-title",
+        "content-created",
+        "content-domain",
+        "contributor",
+        "created",
+        "degree",
+        "deposited",
+        "editor",
+        "event",
+        "funder",
+        "group-title",
+        "indexed",
+        "is-referenced-by-count",
+        "issn-type",
+        "issue",
+        "issued",
+        "license",
+        "link",
+        "member",
+        "original-title",
+        "page",
+        "posted",
+        "prefix",
+        "published",
+        "published-online",
+        "published-print",
+        "publisher",
+        "publisher-location",
+        "reference",
+        "references-count",
+        "relation",
+        "resource",
+        "score",
+        "short-container-title",
+        "short-title",
+        "standards-body",
+        "subject",
+        "subtitle",
+        "title",
+        "translator",
+        "type",
+        "update-policy",
+        "update-to",
+        "updated-by",
+        "volume",
+    ];
+
+    /// The filters crossref reports for `/funders`.
+    const API_FUNDERS_FILTERS: &[&str] = &["location"];
+
+    /// The filters crossref reports for `/members`.
+    const API_MEMBERS_FILTERS: &[&str] =
+        &["prefix", "backfile-doi-count", "current-doi-count"];
+
+    #[test]
+    fn every_works_filter_is_accepted_by_the_api() {
+        let filters = WorksFilter::one_of_each();
+        let names: Vec<&str> = filters.iter().map(WorksFilter::name).collect();
+
+        assert_matches_api("/works filters", &names, API_WORKS_FILTERS);
+    }
+
+    #[test]
+    fn every_field_query_is_accepted_by_the_api() {
+        let queries = FieldQuery::one_of_each();
+        let fields: Vec<&str> = queries.iter().map(FieldQuery::field).collect();
+
+        assert_matches_api("/works field queries", &fields, API_FIELD_QUERIES);
+    }
+
+    #[test]
+    fn every_selectable_element_is_accepted_by_the_api() {
+        let names: Vec<&str> = WorkElement::ALL.iter().map(WorkElement::name).collect();
+
+        assert_matches_api("/works select elements", &names, API_WORK_ELEMENTS);
+    }
+
+    #[test]
+    fn every_funders_filter_is_accepted_by_the_api() {
+        let filters = FundersFilter::one_of_each();
+        let names: Vec<&str> = filters.iter().map(FundersFilter::name).collect();
+
+        assert_matches_api("/funders filters", &names, API_FUNDERS_FILTERS);
+    }
+
+    #[test]
+    fn every_members_filter_is_accepted_by_the_api() {
+        let filters = MembersFilter::one_of_each();
+        let names: Vec<&str> = filters.iter().map(MembersFilter::name).collect();
+
+        assert_matches_api("/members filters", &names, API_MEMBERS_FILTERS);
+    }
+
+    #[test]
+    fn a_marker_filter_renders_as_true_and_a_value_filter_as_its_value() {
+        let filters = vec![
+            WorksFilter::HasOrcid,
+            WorksFilter::AlternativeId("abc".to_string()),
+            WorksFilter::LicenseDelay(30),
+            WorksFilter::GteAwardAmount(1_000),
+        ];
+
+        assert_eq!(
+            vec![(
+                Cow::Borrowed("filter"),
+                Cow::Owned(
+                    "has-orcid:true,alternative-id:abc,license.delay:30,gte-award-amount:1000"
+                        .to_string()
+                )
+            )],
+            filters.params()
+        );
     }
 }

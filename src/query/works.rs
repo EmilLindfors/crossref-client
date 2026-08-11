@@ -5,498 +5,337 @@ use crate::query::*;
 use chrono::NaiveDate;
 use std::borrow::Cow;
 
-/// Filters allow you to narrow queries. All filter results are lists
-#[derive(Debug, Clone)]
-pub enum WorkElement {
-    DOI,
-    ISBN,
-    ISSN,
-    URL,
-    Abstract_,
-    Accepted,
-    AlternativeId,
-    Approved,
-    Archive,
-    ArticleNumber,
-    Assertion,
-    Author,
-    Chair,
-    ClinicalTrialNumber,
-    ContainerTitle,
-    ContentCreated,
-    ContentDomain,
-    Created,
-    Degree,
-    Deposited,
-    Editor,
-    Event,
-    Funder,
-    GroupTitle,
-    Indexed,
-    IsReferencedByCount,
-    IssnType,
-    Issue,
-    Issued,
-    License,
-    Link,
-    Member,
-    OriginalTitle,
-    Page,
-    Posted,
-    Prefix,
-    Published,
-    PublishedOnline,
-    PublishedPrint,
-    Publisher,
-    PublisherLocation,
-    Reference,
-    ReferencesCount,
-    Relation,
-    Score,
-    ShortContainerTitle,
-    ShortTitle,
-    StandardsBody,
-    Subject,
-    Subtitle,
-    Title,
-    Translator,
-    Type,
-    UpdatePolicy,
-    UpdateTo,
-    UpdatedBy,
-    Volume,
+define_keyed_enum! {
+/// A field of a [`Work`](crate::Work) that a query can ask crossref to return.
+///
+/// Passed to [`WorksQuery::elements`]; crossref returns only what was selected,
+/// so every field left out is [`None`] on the resulting `Work`. Covers all 59
+/// fields `/works` accepts, which `every_element_is_accepted_by_the_api` pins
+/// against what the api reports.
+WorkElement {
+    DOI => "DOI",
+    ISBN => "ISBN",
+    ISSN => "ISSN",
+    URL => "URL",
+    Abstract_ => "abstract",
+    Accepted => "accepted",
+    AlternativeId => "alternative-id",
+    Approved => "approved",
+    Archive => "archive",
+    ArticleNumber => "article-number",
+    Assertion => "assertion",
+    Author => "author",
+    Chair => "chair",
+    ClinicalTrialNumber => "clinical-trial-number",
+    ContainerTitle => "container-title",
+    ContentCreated => "content-created",
+    ContentDomain => "content-domain",
+    Contributor => "contributor",
+    Created => "created",
+    Degree => "degree",
+    Deposited => "deposited",
+    Editor => "editor",
+    Event => "event",
+    Funder => "funder",
+    GroupTitle => "group-title",
+    Indexed => "indexed",
+    IsReferencedByCount => "is-referenced-by-count",
+    IssnType => "issn-type",
+    Issue => "issue",
+    Issued => "issued",
+    License => "license",
+    Link => "link",
+    Member => "member",
+    OriginalTitle => "original-title",
+    Page => "page",
+    Posted => "posted",
+    Prefix => "prefix",
+    Published => "published",
+    PublishedOnline => "published-online",
+    PublishedPrint => "published-print",
+    Publisher => "publisher",
+    PublisherLocation => "publisher-location",
+    Reference => "reference",
+    ReferencesCount => "references-count",
+    Relation => "relation",
+    Resource => "resource",
+    Score => "score",
+    ShortContainerTitle => "short-container-title",
+    ShortTitle => "short-title",
+    StandardsBody => "standards-body",
+    Subject => "subject",
+    Subtitle => "subtitle",
+    Title => "title",
+    Translator => "translator",
+    Type => "type",
+    UpdatePolicy => "update-policy",
+    UpdateTo => "update-to",
+    UpdatedBy => "updated-by",
+    Volume => "volume",
 }
-
-impl WorkElement {
-    /// the identifier for a the query key
-    pub fn name(&self) -> &str {
-        match self {
-            WorkElement::DOI => "DOI",
-            WorkElement::ISBN => "ISBN",
-            WorkElement::ISSN => "ISSN",
-            WorkElement::URL => "URL",
-            WorkElement::Abstract_ => "abstract",
-            WorkElement::Accepted => "accepted",
-            WorkElement::AlternativeId => "alternative-id",
-            WorkElement::Approved => "approved",
-            WorkElement::Archive => "archive",
-            WorkElement::ArticleNumber => "article-number",
-            WorkElement::Assertion => "assertion",
-            WorkElement::Author => "author",
-            WorkElement::Chair => "chair",
-            WorkElement::ClinicalTrialNumber => "clinical-trial-number",
-            WorkElement::ContainerTitle => "container-title",
-            WorkElement::ContentCreated => "content-created",
-            WorkElement::ContentDomain => "content-domain",
-            WorkElement::Created => "created",
-            WorkElement::Degree => "degree",
-            WorkElement::Deposited => "deposited",
-            WorkElement::Editor => "editor",
-            WorkElement::Event => "event",
-            WorkElement::Funder => "funder",
-            WorkElement::GroupTitle => "group-title",
-            WorkElement::Indexed => "indexed",
-            WorkElement::IsReferencedByCount => "is-referenced-by-count",
-            WorkElement::IssnType => "issn-type",
-            WorkElement::Issue => "issue",
-            WorkElement::Issued => "issued",
-            WorkElement::License => "license",
-            WorkElement::Link => "link",
-            WorkElement::Member => "member",
-            WorkElement::OriginalTitle => "original-title",
-            WorkElement::Page => "page",
-            WorkElement::Posted => "posted",
-            WorkElement::Prefix => "prefix",
-            WorkElement::Published => "published",
-            WorkElement::PublishedOnline => "published-online",
-            WorkElement::PublishedPrint => "published-print",
-            WorkElement::Publisher => "publisher",
-            WorkElement::PublisherLocation => "publisher-location",
-            WorkElement::Reference => "reference",
-            WorkElement::ReferencesCount => "references-count",
-            WorkElement::Relation => "relation",
-            WorkElement::Score => "score",
-            WorkElement::ShortContainerTitle => "short-container-title",
-            WorkElement::ShortTitle => "short-title",
-            WorkElement::StandardsBody => "standards-body",
-            WorkElement::Subject => "subject",
-            WorkElement::Subtitle => "subtitle",
-            WorkElement::Title => "title",
-            WorkElement::Translator => "translator",
-            WorkElement::Type => "type",
-            WorkElement::UpdatePolicy => "update-policy",
-            WorkElement::UpdateTo => "update-to",
-            WorkElement::UpdatedBy => "updated-by",
-            WorkElement::Volume => "volume",
-        }
-    }
 }
 
 
-/// Filters allow you to narrow queries. All filter results are lists
-#[derive(Debug, Clone)]
-pub enum WorksFilter {
+define_filter! {
+/// Narrows a `/works` query. Every filter is ANDed with the others.
+///
+/// Covers all 90 filters `/works` accepts; crossref answers an unrecognised
+/// one with [`Error::ValidationFailure`](crate::Error::ValidationFailure)
+/// naming the ones it does know, which is what
+/// `every_filter_is_accepted_by_the_api` pins this list against.
+///
+/// Note that `location` and `reference-visibility` are *not* among them --
+/// `location` belongs to [`FundersFilter`](crate::query::funders::FundersFilter).
+WorksFilter;
+markers {
     /// metadata which includes one or more funder entry
-    HasFunder,
-    /// metadata which include the `id` in FundRef data
-    Funder(String),
-    /// funder records where location = `{country name}`.
-    /// Only works on `/funders` route
-    Location(String),
-    /// metadata belonging to a DOI owner prefix `{owner_prefix}` (e.g. 10.1016 )
-    Prefix(String),
-    /// metadata belonging to a Crossref member
-    Member(String),
-    /// metadata indexed since (inclusive)
-    FromIndexDate(NaiveDate),
-    /// metadata indexed before (inclusive)
-    UntilIndexDate(NaiveDate),
-    /// metadata last (re)deposited since (inclusive)
-    FromDepositDate(NaiveDate),
-    /// metadata last (re)deposited before (inclusive)
-    UntilDepositDate(NaiveDate),
-    /// Metadata updated since (inclusive) {date}.
-    /// Currently the same as `from-deposit-date`
-    FromUpdateDate(NaiveDate),
-    /// Metadata updated before (inclusive) {date}.
-    /// Currently the same as `until-deposit-date`
-    UntilUpdateDate(NaiveDate),
-    /// metadata first deposited since (inclusive)
-    FromCreatedDate(NaiveDate),
-    /// metadata first deposited before (inclusive)
-    UntilCreatedDate(NaiveDate),
-    /// metadata where published date is since (inclusive)
-    FromPubDate(NaiveDate),
-    /// metadata where published date is before (inclusive)
-    UntilPubDate(NaiveDate),
-    /// metadata where online published date is since (inclusive)
-    FromOnlinePubDate(NaiveDate),
-    /// metadata where online published date is before (inclusive)
-    UntilOnlinePubDate(NaiveDate),
-    /// metadata where print published date is since (inclusive)
-    FromPrintPubDate(NaiveDate),
-    /// metadata where print published date is before (inclusive)
-    UntilPrintPubDate(NaiveDate),
-    /// metadata where posted date is since (inclusive)
-    FromPostedDate(NaiveDate),
-    /// metadata where posted date is before (inclusive)
-    UntilPostedDate(NaiveDate),
-    /// metadata where accepted date is since (inclusive)
-    FromAcceptedDate(NaiveDate),
-    /// metadata where accepted date is before (inclusive)
-    UntilAcceptedDate(NaiveDate),
-    /// metadata that includes any `<license_ref>` elements.
-    HasLicense,
-    /// metadata where `<license_ref> value equals the value
-    LicenseUrl(String),
-    /// metadata where the `<license_ref>`'s applies_to attribute is
-    LicenseVersion(String),
-    /// metadata where difference between publication date and the `<license_ref>`'s start_date attribute is <= value (in days)
-    LicenseDelay(i32),
+    HasFunder => "has-funder",
+    /// metadata where a funder entry carries a Funder Registry DOI
+    HasFunderDoi => "has-funder-doi",
+    /// metadata where a funder entry carries a ROR id
+    HasFunderRorId => "has-funder-ror-id",
+    /// metadata for records that have any affiliation information
+    HasAffiliation => "has-affiliation",
+    /// metadata where an affiliation carries a ROR id
+    HasAffiliationRorId => "has-affiliation-ror-id",
+    /// metadata carrying a ROR id anywhere
+    HasRorId => "has-ror-id",
+    /// metadata that includes any `<license_ref>` elements
+    HasLicense => "has-license",
     /// metadata that includes any full text `<resource>` elements
-    HasFullText,
-    /// metadata where `<resource>` element's content_version attribute is the value
-    FullTextVersion(String),
-    /// metadata where `<resource>` element's content_type attribute is value (e.g. `application/pdf)`
-    FullTextType(String),
-    /// metadata where `<resource>` link has one of the following intended applications: `text-mining`, `similarity-checking` or `unspecified`
-    FullTextApplication(String),
+    HasFullText => "has-full-text",
     /// metadata for works that have a list of references
-    HasReferences,
-    /// metadata for works where references are either `open`, `limited` (to Metadata Plus subscribers) or `closed`
-    ReferenceVisibility(Visibility),
+    HasReferences => "has-references",
     /// metadata which include name of archive partner
-    HasArchive,
-    ///  metadata which where value of archive partner is the value
-    Archive(String),
+    HasArchive => "has-archive",
     /// metadata which includes one or more ORCIDs
-    HasOrcid,
+    HasOrcid => "has-orcid",
     /// metadata which includes one or more ORCIDs where the depositing publisher claims to have witness the ORCID owner authenticate with ORCID
-    HasAuthenticatedOrcid,
-    /// metadata where `<orcid>` element's value = the value
-    Orcid(String),
+    HasAuthenticatedOrcid => "has-authenticated-orcid",
+    /// metadata for records which include an abstract
+    HasAbstract => "has-abstract",
+    /// metadata for records which include a clinical trial number
+    HasClinicalTrialNumber => "has-clinical-trial-number",
+    /// metadata where the publisher records a domain name location for Crossmark content
+    HasContentDomain => "has-content-domain",
+    /// metadata where the publisher restricts Crossmark usage to content domains
+    HasDomainRestriction => "has-domain-restriction",
+    /// metadata for records that either assert or are the object of a relation
+    HasRelation => "has-relation",
+    /// metadata for records that carry an editorial update
+    HasUpdate => "has-update",
+    /// metadata for records that include a link to an editorial update policy
+    HasUpdatePolicy => "has-update-policy",
+    /// metadata for records with any assertions
+    HasAssertion => "has-assertion",
+    /// metadata for records that carry award information
+    HasAward => "has-award",
+    /// metadata for records deposited under more than one DOI
+    HasAlias => "has-alias",
+    /// metadata for records that are the primary DOI of an alias group
+    HasPrimeDoi => "has-prime-doi",
+    /// metadata for records that describe an event
+    HasEvent => "has-event",
+    /// metadata for records that represent editorial updates
+    IsUpdate => "is-update",
+}
+values {
+    /// metadata which include the `id` in FundRef data
+    Funder(String) => "funder",
+    /// metadata belonging to a DOI owner prefix `{owner_prefix}` (e.g. 10.1016 )
+    Prefix(String) => "prefix",
+    /// metadata belonging to a Crossref member
+    Member(String) => "member",
+    /// metadata describing the DOI
+    Doi(String) => "doi",
     /// metadata where record has an ISSN = the value. Format is xxxx-xxxx
-    Issn(String),
+    Issn(String) => "issn",
     /// metadata where record has an ISBN = the value
-    Isbn(String),
-    /// metadata records whose type = value.
-    /// Type must be an ID value from the list of types returned by the `/types` resource
-    Type(Type),
+    Isbn(String) => "isbn",
+    /// metadata where `<orcid>` element's value = the value
+    Orcid(String) => "orcid",
+    ///  metadata which where value of archive partner is the value
+    Archive(String) => "archive",
     /// metadata records whose article or serial are mentioned in the given value.
     /// Currently the only supported value is `doaj`
-    Directory(String),
-    /// metadata describing the DOI
-    Doi(String),
+    Directory(String) => "directory",
     /// metadata for records that represent editorial updates to the DOI
-    Updates(String),
-    /// metadata for records that represent editorial updates
-    IsUpdate,
-    /// metadata for records that include a link to an editorial update policy
-    HasUpdatePolicy,
+    Updates(String) => "updates",
     /// metadata for records with a publication title exactly with an exact match
-    ContainerTitle(String),
+    ContainerTitle(String) => "container-title",
     /// metadata for records with an exact matching category label.
     /// Category labels come from [this list](https://www.elsevier.com/solutions/scopus/content) published by Scopus
-    CategoryName(String),
+    CategoryName(String) => "category-name",
     /// metadata for records with an exacty matching type label
-    TypeName(String),
-    /// metadata for records with a matching award number.
-    /// Optionally combine with `award.funder`
-    AwardNumber(String),
-    /// metadata for records with an award with matching funder.
-    /// Optionally combine with `award.number`
-    AwardFunder(String),
-    /// metadata for records with any assertions
-    HasAssertion,
-    /// metadata for records with an assertion in a particular group
-    AssertionGroup(String),
-    /// metadata for records with a particular named assertion
-    Assertion(String),
-    /// metadata for records that have any affiliation information
-    HasAffiliation,
+    TypeName(String) => "type-name",
+    /// metadata records whose type = value.
+    /// Type must be an ID value from the list of types returned by the `/types` resource
+    Type(Type) => "type",
+    /// metadata for records with a matching group title, as deposited for posted content
+    GroupTitle(String) => "group-title",
+    /// metadata where the publisher records a particular domain name as the location Crossmark content will appear
+    ContentDomain(String) => "content-domain",
+    /// metadata for records carrying the given clinical trial number
+    ClinicalTrialNumber(String) => "clinical-trial-number",
     /// metadata for records with the given alternative ID,
     /// which may be a publisher-specific ID, or any other identifier a publisher may have provided
-    AlternativeId,
+    AlternativeId(String) => "alternative-id",
     /// metadata for records with a given article number
-    ArticleNumber,
-    /// metadata for records which include an abstract
-    HasAbstract,
-    /// metadata for records which include a clinical trial number
-    HasClinicalTrialNumber,
-    /// metadata where the publisher records a particular domain name as the location Crossmark content will appear
-    ContentDomain(String),
-    /// metadata where the publisher records a domain name location for Crossmark content
-    HasContentDomain,
-    /// metadata where the publisher restricts Crossmark usage to content domains
-    HasDomainRestriction,
-    /// metadata for records that either assert or are the object of a relation
-    HasRelation,
+    ArticleNumber(String) => "article-number",
+    /// metadata carrying the given [ROR](https://ror.org) id, the identifier
+    /// crossref now models affiliations and funders with
+    RorId(String) => "ror-id",
+    /// metadata for editorial updates of the given kind, e.g. `correction` or `retraction`
+    UpdateType(String) => "update-type",
+    /// metadata where a funder's DOI was asserted by the value, either
+    /// `crossref` or `publisher`
+    FunderDoiAssertedBy(String) => "funder-doi-asserted-by",
+    /// metadata for records with a particular named assertion
+    Assertion(String) => "assertion",
+    /// metadata for records with an assertion in a particular group
+    AssertionGroup(String) => "assertion-group",
+    /// metadata for records with a matching award number.
+    /// Optionally combine with `award.funder`
+    AwardNumber(String) => "award.number",
+    /// metadata for records with an award with matching funder.
+    /// Optionally combine with `award.number`
+    AwardFunder(String) => "award.funder",
+    /// metadata for records with an award of at least this amount
+    GteAwardAmount(u64) => "gte-award-amount",
+    /// metadata for records with an award of at most this amount
+    LteAwardAmount(u64) => "lte-award-amount",
+    /// metadata where `<license_ref>` value equals the value
+    LicenseUrl(String) => "license.url",
+    /// metadata where the `<license_ref>`'s applies_to attribute is
+    LicenseVersion(String) => "license.version",
+    /// metadata where difference between publication date and the `<license_ref>`'s start_date attribute is <= value (in days)
+    LicenseDelay(i32) => "license.delay",
+    /// metadata where `<resource>` element's content_version attribute is the value
+    FullTextVersion(String) => "full-text.version",
+    /// metadata where `<resource>` element's content_type attribute is value (e.g. `application/pdf)`
+    FullTextType(String) => "full-text.type",
+    /// metadata where `<resource>` link has one of the following intended applications: `text-mining`, `similarity-checking` or `unspecified`
+    FullTextApplication(String) => "full-text.application",
     /// One of the relation types from the Crossref relations schema
     /// (e.g. `is-referenced-by`, `is-parent-of`, `is-preprint-of`)
-    RelationType,
+    RelationType(String) => "relation.type",
     /// Relations where the object identifier matches the identifier provided
-    RelationObject,
+    RelationObject(String) => "relation.object",
     /// One of the identifier types from the Crossref relations schema (e.g. `doi`, `issn`)
-    RelationObjectType(String),
+    RelationObjectType(String) => "relation.object-type",
+    /// metadata indexed since (inclusive)
+    FromIndexDate(NaiveDate) => "from-index-date",
+    /// metadata indexed before (inclusive)
+    UntilIndexDate(NaiveDate) => "until-index-date",
+    /// metadata last (re)deposited since (inclusive)
+    FromDepositDate(NaiveDate) => "from-deposit-date",
+    /// metadata last (re)deposited before (inclusive)
+    UntilDepositDate(NaiveDate) => "until-deposit-date",
+    /// Metadata updated since (inclusive) {date}.
+    /// Currently the same as `from-deposit-date`
+    FromUpdateDate(NaiveDate) => "from-update-date",
+    /// Metadata updated before (inclusive) {date}.
+    /// Currently the same as `until-deposit-date`
+    UntilUpdateDate(NaiveDate) => "until-update-date",
+    /// metadata first deposited since (inclusive)
+    FromCreatedDate(NaiveDate) => "from-created-date",
+    /// metadata first deposited before (inclusive)
+    UntilCreatedDate(NaiveDate) => "until-created-date",
+    /// metadata where published date is since (inclusive)
+    FromPubDate(NaiveDate) => "from-pub-date",
+    /// metadata where published date is before (inclusive)
+    UntilPubDate(NaiveDate) => "until-pub-date",
+    /// metadata where online published date is since (inclusive)
+    FromOnlinePubDate(NaiveDate) => "from-online-pub-date",
+    /// metadata where online published date is before (inclusive)
+    UntilOnlinePubDate(NaiveDate) => "until-online-pub-date",
+    /// metadata where print published date is since (inclusive)
+    FromPrintPubDate(NaiveDate) => "from-print-pub-date",
+    /// metadata where print published date is before (inclusive)
+    UntilPrintPubDate(NaiveDate) => "until-print-pub-date",
+    /// metadata where posted date is since (inclusive)
+    FromPostedDate(NaiveDate) => "from-posted-date",
+    /// metadata where posted date is before (inclusive)
+    UntilPostedDate(NaiveDate) => "until-posted-date",
+    /// metadata where accepted date is since (inclusive)
+    FromAcceptedDate(NaiveDate) => "from-accepted-date",
+    /// metadata where accepted date is before (inclusive)
+    UntilAcceptedDate(NaiveDate) => "until-accepted-date",
+    /// metadata where approved date is since (inclusive)
+    FromApprovedDate(NaiveDate) => "from-approved-date",
+    /// metadata where approved date is before (inclusive)
+    UntilApprovedDate(NaiveDate) => "until-approved-date",
+    /// metadata where an award was made since (inclusive)
+    FromAwardedDate(NaiveDate) => "from-awarded-date",
+    /// metadata where an award was made before (inclusive)
+    UntilAwardedDate(NaiveDate) => "until-awarded-date",
+    /// metadata where issued date is since (inclusive)
+    FromIssuedDate(NaiveDate) => "from-issued-date",
+    /// metadata where issued date is before (inclusive)
+    UntilIssuedDate(NaiveDate) => "until-issued-date",
+    /// metadata for events starting since (inclusive)
+    FromEventStartDate(NaiveDate) => "from-event-start-date",
+    /// metadata for events starting before (inclusive)
+    UntilEventStartDate(NaiveDate) => "until-event-start-date",
+    /// metadata for events ending since (inclusive)
+    FromEventEndDate(NaiveDate) => "from-event-end-date",
+    /// metadata for events ending before (inclusive)
+    UntilEventEndDate(NaiveDate) => "until-event-end-date",
+}
 }
 
-impl WorksFilter {
-    /// the identifier for a the query key
-    pub fn name(&self) -> &str {
-        match self {
-            WorksFilter::HasFunder => "has-funder",
-            WorksFilter::Funder(_) => "funder",
-            WorksFilter::Location(_) => "location",
-            WorksFilter::Prefix(_) => "prefix",
-            WorksFilter::Member(_) => "member",
-            WorksFilter::FromIndexDate(_) => "from-index-date",
-            WorksFilter::UntilIndexDate(_) => "until-index-date",
-            WorksFilter::FromDepositDate(_) => "from-deposit-date",
-            WorksFilter::UntilDepositDate(_) => "until-deposit-date",
-            WorksFilter::FromUpdateDate(_) => "from-update-date",
-            WorksFilter::UntilUpdateDate(_) => "until-update-date",
-            WorksFilter::FromCreatedDate(_) => "from-created-date",
-            WorksFilter::UntilCreatedDate(_) => "until-created-date",
-            WorksFilter::FromPubDate(_) => "from-pub-date",
-            WorksFilter::UntilPubDate(_) => "until-pub-date",
-            WorksFilter::FromOnlinePubDate(_) => "from-online-pub-date",
-            WorksFilter::UntilOnlinePubDate(_) => "until-online-pub-date",
-            WorksFilter::FromPrintPubDate(_) => "from-print-pub-date",
-            WorksFilter::UntilPrintPubDate(_) => "until-print-pub-date",
-            WorksFilter::FromPostedDate(_) => "from-posted-date",
-            WorksFilter::UntilPostedDate(_) => "until-posted-date",
-            WorksFilter::FromAcceptedDate(_) => "from-accepted-date",
-            WorksFilter::UntilAcceptedDate(_) => "until-accepted-date",
-            WorksFilter::HasLicense => "has-license",
-            WorksFilter::LicenseUrl(_) => "license.url",
-            WorksFilter::LicenseVersion(_) => "license.version",
-            WorksFilter::LicenseDelay(_) => "license.delay",
-            WorksFilter::HasFullText => "has-full-text",
-            WorksFilter::FullTextVersion(_) => "full-text.version",
-            WorksFilter::FullTextType(_) => "full-text.type",
-            WorksFilter::FullTextApplication(_) => "full-text.application",
-            WorksFilter::HasReferences => "has-references",
-            WorksFilter::ReferenceVisibility(_) => "reference-visibility",
-            WorksFilter::HasArchive => "has-archive",
-            WorksFilter::Archive(_) => "archive",
-            WorksFilter::HasOrcid => "has-orcid",
-            WorksFilter::HasAuthenticatedOrcid => "has-authenticated-orcid",
-            WorksFilter::Orcid(_) => "orcid",
-            WorksFilter::Issn(_) => "issn",
-            WorksFilter::Isbn(_) => "isbn",
-            WorksFilter::Type(_) => "type",
-            WorksFilter::Directory(_) => "directory",
-            WorksFilter::Doi(_) => "doi",
-            WorksFilter::Updates(_) => "updates",
-            WorksFilter::IsUpdate => "is-update",
-            WorksFilter::HasUpdatePolicy => "has-update-policy",
-            WorksFilter::ContainerTitle(_) => "container-title",
-            WorksFilter::CategoryName(_) => "category-name",
-            WorksFilter::TypeName(_) => "type-name",
-            WorksFilter::AwardNumber(_) => "award.number",
-            WorksFilter::AwardFunder(_) => "award.funder",
-            WorksFilter::HasAssertion => "has-assertion",
-            WorksFilter::AssertionGroup(_) => "assertion-group",
-            WorksFilter::Assertion(_) => "assertion",
-            WorksFilter::HasAffiliation => "has-affiliation",
-            WorksFilter::AlternativeId => "alternative-id",
-            WorksFilter::ArticleNumber => "article-number",
-            WorksFilter::HasAbstract => "has-abstract",
-            WorksFilter::HasClinicalTrialNumber => "has-clinical-trial-number",
-            WorksFilter::ContentDomain(_) => "content-domain",
-            WorksFilter::HasContentDomain => "has-content-domain",
-            WorksFilter::HasDomainRestriction => "has-domain-restriction",
-            WorksFilter::HasRelation => "has-relation",
-            WorksFilter::RelationType => "relation.type",
-            WorksFilter::RelationObject => "relation.object",
-            WorksFilter::RelationObjectType(_) => "relation.object-type",
-        }
-    }
-}
 
-impl ParamFragment for WorksFilter {
-    fn key(&self) -> Cow<'_, str> {
-        Cow::Borrowed(self.name())
-    }
-
-    fn value(&self) -> Option<Cow<'_, str>> {
-        match self {
-            WorksFilter::Funder(s)
-            | WorksFilter::Location(s)
-            | WorksFilter::Prefix(s)
-            | WorksFilter::Member(s)
-            | WorksFilter::LicenseUrl(s)
-            | WorksFilter::LicenseVersion(s)
-            | WorksFilter::FullTextVersion(s)
-            | WorksFilter::FullTextType(s)
-            | WorksFilter::FullTextApplication(s)
-            | WorksFilter::Archive(s)
-            | WorksFilter::Orcid(s)
-            | WorksFilter::Issn(s)
-            | WorksFilter::Isbn(s)
-            | WorksFilter::Directory(s)
-            | WorksFilter::Doi(s)
-            | WorksFilter::Updates(s)
-            | WorksFilter::ContainerTitle(s)
-            | WorksFilter::CategoryName(s)
-            | WorksFilter::AwardNumber(s)
-            | WorksFilter::TypeName(s)
-            | WorksFilter::AwardFunder(s)
-            | WorksFilter::AssertionGroup(s)
-            | WorksFilter::Assertion(s)
-            | WorksFilter::ContentDomain(s)
-            | WorksFilter::RelationObjectType(s) => Some(Cow::Borrowed(s.as_str())),
-            WorksFilter::ReferenceVisibility(vis) => Some(Cow::Borrowed(vis.as_str())),
-            WorksFilter::FromIndexDate(d)
-            | WorksFilter::UntilIndexDate(d)
-            | WorksFilter::FromDepositDate(d)
-            | WorksFilter::UntilDepositDate(d)
-            | WorksFilter::FromUpdateDate(d)
-            | WorksFilter::UntilUpdateDate(d)
-            | WorksFilter::FromCreatedDate(d)
-            | WorksFilter::UntilCreatedDate(d)
-            | WorksFilter::FromPubDate(d)
-            | WorksFilter::UntilPubDate(d)
-            | WorksFilter::FromOnlinePubDate(d)
-            | WorksFilter::UntilOnlinePubDate(d)
-            | WorksFilter::FromPrintPubDate(d)
-            | WorksFilter::UntilPrintPubDate(d)
-            | WorksFilter::FromPostedDate(d)
-            | WorksFilter::UntilPostedDate(d)
-            | WorksFilter::FromAcceptedDate(d)
-            | WorksFilter::UntilAcceptedDate(d) => {
-                Some(Cow::Owned(d.format("%Y-%m-%d").to_string()))
-            }
-            WorksFilter::Type(t) => Some(Cow::Borrowed(t.id())),
-            _ => Some(Cow::Borrowed("true")),
-        }
-    }
-}
-
-impl Filter for WorksFilter {}
-
-/// Field queries are available on the `/works` route and allow for queries that match only particular fields of metadata.
-#[derive(Debug, Clone)]
-pub struct FieldQuery {
-    /// match any only particular fields of metadata.
-    pub name: String,
-    /// the value of the query
-    pub value: String,
-}
-
-impl FieldQuery {
-    /// creates a new `Field` query for `title` and `subtitle`
-    pub fn title(title: &str) -> Self {
-        Self {
-            name: "query.title".to_string(),
-            value: title.to_string(),
-        }
-    }
-
-    /// creates a new `Field` query for `container-title` aka `publication.name`
-    pub fn container_title(container_title: &str) -> Self {
-        Self {
-            name: "query.container-title".to_string(),
-            value: container_title.to_string(),
-        }
-    }
-    /// creates a new `Field` query author given and family names
-    pub fn author(author: &str) -> Self {
-        Self {
-            name: "query.author".to_string(),
-            value: author.to_string(),
-        }
-    }
-    /// creates a new `Field` query for editor given and family names
-    pub fn editor(editor: &str) -> Self {
-        Self {
-            name: "query.editor".to_string(),
-            value: editor.to_string(),
-        }
-    }
-    /// creates a new `Field` query for chair given and family names
-    pub fn chair(chair: &str) -> Self {
-        Self {
-            name: "query.chair".to_string(),
-            value: chair.to_string(),
-        }
-    }
-    /// creates a new `Field` query for translator given and family names
-    pub fn translator(translator: &str) -> Self {
-        Self {
-            name: "query.translator".to_string(),
-            value: translator.to_string(),
-        }
-    }
-    /// creates a new `Field` query for author, editor, chair and translator given and family names
-    pub fn contributor(contributor: &str) -> Self {
-        Self {
-            name: "query.contributor".to_string(),
-            value: contributor.to_string(),
-        }
-    }
-    /// creates a new `Field` query for bibliographic information, useful for citation look up.
-    /// Includes titles, authors, ISSNs and publication years
-    pub fn bibliographic(bibliographic: &str) -> Self {
-        Self {
-            name: "query.bibliographic".to_string(),
-            value: bibliographic.to_string(),
-        }
-    }
-    /// creates a new `Field` query for contributor affiliations
-    pub fn affiliation(affiliation: &str) -> Self {
-        Self {
-            name: "query.affiliation".to_string(),
-            value: affiliation.to_string(),
-        }
-    }
+define_field_queries! {
+    /// titles, including the subtitle
+    Title => "title" / title,
+    /// the title of the containing work, aka `publication.name`
+    ContainerTitle => "container-title" / container_title,
+    /// author given and family names
+    Author => "author" / author,
+    /// editor given and family names
+    Editor => "editor" / editor,
+    /// chair given and family names
+    Chair => "chair" / chair,
+    /// translator given and family names
+    Translator => "translator" / translator,
+    /// author, editor, chair and translator given and family names
+    Contributor => "contributor" / contributor,
+    /// bibliographic information, useful for citation look up. Includes
+    /// titles, authors, ISSNs and publication years
+    Bibliographic => "bibliographic" / bibliographic,
+    /// contributor affiliations
+    Affiliation => "affiliation" / affiliation,
+    /// the degree a dissertation was awarded for
+    Degree => "degree" / degree,
+    /// the description deposited for posted content
+    Description => "description" / description,
+    /// the short form of an event's name
+    EventAcronym => "event-acronym" / event_acronym,
+    /// where an event was held
+    EventLocation => "event-location" / event_location,
+    /// an event's name
+    EventName => "event-name" / event_name,
+    /// who sponsored an event
+    EventSponsor => "event-sponsor" / event_sponsor,
+    /// an event's theme
+    EventTheme => "event-theme" / event_theme,
+    /// the name of a funding body, for works whose funder carries no registry DOI
+    FunderName => "funder-name" / funder_name,
+    /// where the publisher is located
+    PublisherLocation => "publisher-location" / publisher_location,
+    /// the publisher's name
+    PublisherName => "publisher-name" / publisher_name,
+    /// the short form of a standards body's name
+    StandardsBodyAcronym => "standards-body-acronym" / standards_body_acronym,
+    /// the name of the body that issued a standard
+    StandardsBodyName => "standards-body-name" / standards_body_name,
 }
 
 impl CrossrefQueryParam for FieldQuery {
     fn params(&self) -> Vec<(Cow<'_, str>, Cow<'_, str>)> {
         vec![(
-            Cow::Borrowed(&self.name),
-            Cow::Owned(format_query(&self.value)),
+            Cow::Borrowed(self.name()),
+            Cow::Owned(format_query(self.value())),
         )]
     }
 }

@@ -6,16 +6,22 @@
 
 use crossref_client::query::ResultControl;
 use crossref_client::{
-    Crossref, FieldQuery, JournalsQuery, Type, WorkElement, WorkResultControl, WorksFilter,
+    Crossref, Error, FieldQuery, JournalsQuery, Type, WorkElement, WorkResultControl, WorksFilter,
     WorksIdentQuery, WorksQuery,
 };
 use std::future::Future;
 use std::sync::OnceLock;
 use tokio::runtime::Runtime;
 
-/// Contact address sent to crossref so these tests run in the polite pool
-/// rather than the shared anonymous one, which rate-limits harder.
-const CONTACT_EMAIL: &str = "emil@lindfors.no";
+/// The contact address to identify the suite to crossref with.
+///
+/// Whoever runs the tests, not whoever wrote them -- an address baked into the
+/// file would attribute every contributor's traffic to one person. Unset, the
+/// suite uses the anonymous pool, which is rate-limited harder but works; the
+/// client paces itself against whichever budget it is granted.
+fn contact_email() -> Option<String> {
+    std::env::var("CROSSREF_MAILTO").ok()
+}
 
 /// Runs `test` against the shared client.
 ///
@@ -30,7 +36,7 @@ fn api_test<F: Future<Output = ()>>(test: impl FnOnce(Crossref) -> F) {
         let runtime = Runtime::new().expect("a tokio runtime");
         let client = runtime.block_on(async {
             Crossref::builder()
-                .polite(CONTACT_EMAIL)
+                .polite(contact_email().as_deref())
                 .build()
                 .expect("a crossref client")
         });
@@ -164,13 +170,64 @@ fn journals_can_be_found_by_title() {
 }
 
 #[test]
-fn the_client_lands_in_the_polite_pool() {
+fn the_filters_added_for_ror_awards_and_events_are_accepted() {
+    api_test(|client| async move {
+        // the coverage tests pin the names against what crossref reports; this
+        // checks the values render into something the route actually takes
+        client
+            .works(
+                WorksQuery::empty()
+                    .filter(WorksFilter::HasRorId)
+                    .filter(WorksFilter::HasAlias)
+                    .filter(WorksFilter::UpdateType("correction".to_string()))
+                    .filter(WorksFilter::GteAwardAmount(1_000))
+                    .filter(WorksFilter::AlternativeId("x".to_string()))
+                    .filter(WorksFilter::RelationType("is-review-of".to_string()))
+                    .filter(WorksFilter::FromIssuedDate(
+                        "2020-01-01".parse().expect("a date"),
+                    ))
+                    .result_control(WorkResultControl::Standard(ResultControl::Rows(1))),
+            )
+            .await
+            .expect("crossref accepts every one of these filters");
+    });
+}
+
+#[test]
+fn a_rejected_request_reports_what_crossref_objected_to() {
+    api_test(|client| async move {
+        // crossref caps `rows` at 1000 and says so in a `validation-failure`
+        // body, which used to be flattened into an opaque `400`
+        let error = client
+            .works(WorksQuery::empty().result_control(WorkResultControl::Standard(
+                ResultControl::Rows(10_000),
+            )))
+            .await
+            .expect_err("crossref rejects a 10 000 row page");
+
+        let Error::ValidationFailure { failures } = error else {
+            panic!("expected a validation failure, got {error:?}");
+        };
+        assert!(
+            failures.to_string().contains("1000"),
+            "crossref's own message should survive: {failures}"
+        );
+    });
+}
+
+#[test]
+fn the_reported_budget_and_pool_reach_the_client() {
     api_test(|client| async move {
         client.works(WorksQuery::empty()).await.expect("a work list");
 
-        let pool = client.api_pool().expect("a pool, once a response has come back");
-        assert!(pool.starts_with("polite"), "landed in the `{pool}` pool");
+        let pool = client
+            .api_pool()
+            .expect("a pool, once a response has come back");
         // whatever crossref grants, it is never nothing
         assert!(client.rate_limit().limit > 0);
+
+        if contact_email().is_some() {
+            assert!(pool.starts_with("polite"), "landed in the `{pool}` pool");
+        }
     });
 }

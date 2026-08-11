@@ -3,47 +3,23 @@ use crate::query::works::{WorksCombiner, WorksIdentQuery};
 use crate::query::*;
 use std::borrow::Cow;
 
-/// filters supported for the `/members` route
-#[derive(Debug, Clone)]
-pub enum MembersFilter {
-    /// Member has made their references public for one or more of their prefixes
-    HasPublicReferences,
-    /// metadata for works where references are either `open`, `limited` (to Metadata Plus subscribers) or `closed`
-    ReferenceVisibility(Visibility),
+define_filter! {
+/// Narrows a `/members` query.
+///
+/// `has-public-references` and `reference-visibility` used to be here; the
+/// route rejects both with a `400`. `blackfile-doi-count` was a typo for
+/// `backfile-doi-count` and never matched anything either.
+MembersFilter;
+markers {}
+values {
+    /// members that own the given DOI prefix
+    Prefix(String) => "prefix",
     /// count of DOIs for material published more than two years ago
-    BlackfileDoiCount(i32),
-    /// count of DOIs for material published within last two years
-    CurrentDoiCount(i32),
+    BackfileDoiCount(i32) => "backfile-doi-count",
+    /// count of DOIs for material published within the last two years
+    CurrentDoiCount(i32) => "current-doi-count",
 }
-
-impl MembersFilter {
-    /// the key name for the filter element
-    pub fn name(&self) -> &str {
-        match self {
-            MembersFilter::HasPublicReferences => "has-public-references",
-            MembersFilter::ReferenceVisibility(_) => "reference-visibility",
-            MembersFilter::BlackfileDoiCount(_) => "blackfile-doi-count",
-            MembersFilter::CurrentDoiCount(_) => "current-doi-count",
-        }
-    }
 }
-
-impl ParamFragment for MembersFilter {
-    fn key(&self) -> Cow<'_, str> {
-        Cow::Borrowed(self.name())
-    }
-
-    fn value(&self) -> Option<Cow<'_, str>> {
-        match self {
-            MembersFilter::HasPublicReferences => None,
-            MembersFilter::ReferenceVisibility(vis) => Some(Cow::Borrowed(vis.as_str())),
-            MembersFilter::BlackfileDoiCount(num) => Some(Cow::Owned(num.to_string())),
-            MembersFilter::CurrentDoiCount(num) => Some(Cow::Owned(num.to_string())),
-        }
-    }
-}
-
-impl Filter for MembersFilter {}
 
 impl_common_query!(MembersQuery, MembersFilter);
 
