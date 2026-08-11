@@ -1,14 +1,12 @@
 mod journal;
-pub use journal::*;
 use crate::error::Error;
 use crate::query::Visibility;
 use crate::response::work::*;
-use serde::de::Deserializer;
+pub use journal::*;
 use serde::{Deserialize, Serialize};
-use serde_json::{from_value, Value};
+use serde_json::Value;
 use std::collections::HashMap;
 use std::fmt;
-use std::str::FromStr;
 
 //pub use crate::response::journal::Journal;
 /// provides the types for a work response
@@ -17,70 +15,23 @@ pub mod work;
 pub use crate::response::work::{Work, WorkList};
 
 /// Represents the whole crossref response for a any request.
-#[derive(Debug, Clone, Serialize)]
+///
+/// Which payload the `message` carries is decided by the `message-type` beside
+/// it, which is exactly serde's adjacently tagged enum -- so [`Message`] does
+/// the dispatch and this type is a plain derive.
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct Response {
     /// the status of the request
     pub status: String,
-    /// the type of the response message holds
-    pub message_type: MessageType,
     /// the version of the service created this message
     #[serde(default = "default_msg_version")]
     pub message_version: String,
-    /// the actual message of the response
-    pub message: Option<Message>,
+    /// the actual message of the response, and the type naming it
+    #[serde(flatten)]
+    pub message: Message,
 }
 
-impl TryFrom<serde_json::Value> for Response {
-    type Error = Error;
-
-    fn try_from(value: Value) -> Result<Self, Self::Error> {
-        match value {
-            Value::Object(map) => {
-                let status = map.get("status").ok_or_else(|| Error::MissingField {
-                    msg: "status".to_string(),
-                })?;
-                let message_type =
-                    map.get("message-type")
-                        .ok_or_else(|| Error::MissingField {
-                            msg: "message-type".to_string(),
-                        })?;
-                let message_type = MessageType::from_str(message_type.as_str().ok_or_else(
-                            || Error::InvalidField {
-                                msg: "message-type".to_string(),
-                            },
-                        )?)?;
-                let message_version = match map.get("message-version") {
-                    Some(version) => version.as_str().ok_or_else(|| Error::InvalidField {
-                        msg: "message-version".to_string(),
-                    })?,
-                    // some routes omit it entirely
-                    None => "1.0.0",
-                };
-                let message = map.get("message").ok_or_else(|| Error::MissingField {
-                    msg: "message".to_string(),
-                })?;
-
-                let message = Message::try_from((message_type.clone(), message.clone()))?;
-
-                Ok(Response {
-                    status: status
-                        .as_str()
-                        .ok_or_else(|| Error::InvalidField {
-                            msg: "status".to_string(),
-                        })?
-                        .to_string(),
-                    message_type,
-                    message_version: message_version.to_string(),
-                    message: Some(message),
-                })
-            }
-            _ => Err(Error::InvalidField {
-                msg: "response".to_string(),
-            }),
-        }
-    }
-}
 /// at some routes the `msg_version` is missing, this returns the default version for a crossref response
 fn default_msg_version() -> String {
     "1.0.0".to_string()
@@ -88,23 +39,19 @@ fn default_msg_version() -> String {
 
 /// this macro helps to generate a function that checks whether the message is of a specific type
 macro_rules! impl_msg_helper {
-    (single: $($name:ident -> $ident:ident,)*) => {
+    ($($name:ident -> $ident:ident,)*) => {
     $(
         /// checks if the message holds the variant
         pub fn $name(&self) -> bool {
-           if let Some(Message::$ident(_)) = &self.message {
-               true
-           } else {
-               false
-           }
+            matches!(&self.message, Message::$ident(_))
         }
     )+
     };
 }
 
 impl Response {
-    impl_msg_helper!(single:
-        is_work_ageny -> WorkAgency,
+    impl_msg_helper!(
+        is_work_agency -> WorkAgency,
         is_funder -> Funder,
         is_prefix -> Prefix,
         is_work -> Work,
@@ -117,116 +64,22 @@ impl Response {
         is_member_list -> MemberList,
         is_journal_list -> JournalList,
         is_funder_list -> FunderList,
+        is_license_list -> LicenseList,
     );
 
     /// checks whether the `message` holds a variant of `RouteNotFound`
     pub fn is_route_not_found(&self) -> bool {
-        matches!(&self.message, Some(Message::RouteNotFound))
-    }
-}
-
-impl<'de> Deserialize<'de> for Response {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        #[derive(Deserialize)]
-        #[serde(rename_all = "kebab-case")]
-        struct ResponseFragment {
-            status: String,
-            message_type: MessageType,
-            #[serde(default = "default_msg_version")]
-            message_version: String,
-            message: Option<Value>,
-        }
-
-        #[derive(Deserialize)]
-        #[serde(rename_all = "kebab-case")]
-        struct ListResp {
-            #[serde(default)]
-            facets: FacetMap,
-            next_cursor: Option<String>,
-            total_results: usize,
-            items_per_page: Option<usize>,
-            query: Option<QueryResponse>,
-            items: Value,
-        }
-
-        let fragment = ResponseFragment::deserialize(deserializer)?;
-
-        macro_rules! msg_arm {
-            ($ident:ident, $value:expr) => {{
-                Message::$ident(
-                    ::serde_json::from_value($value).map_err(::serde::de::Error::custom)?,
-                )
-            }};
-            ($ident:ident, $value:expr, $ty:ty) => {{
-                let list_resp: ListResp =
-                    ::serde_json::from_value($value).map_err(::serde::de::Error::custom)?;
-                let items: Vec<$ty> = ::serde_json::from_value(list_resp.items)
-                    .map_err(::serde::de::Error::custom)?;
-                Message::$ident($ident {
-                    facets: list_resp.facets,
-                    total_results: list_resp.total_results,
-                    items_per_page: list_resp.items_per_page,
-                    query: list_resp.query,
-                    items,
-                })
-            }};
-        }
-
-        fn work_list(msg: Value) -> Result<Message, serde_json::Error> {
-            let list_resp: ListResp = ::serde_json::from_value(msg)?;
-            let items: Vec<Work> = ::serde_json::from_value(list_resp.items)?;
-
-            Ok(Message::WorkList(WorkList {
-                facets: list_resp.facets,
-                total_results: list_resp.total_results,
-                items_per_page: list_resp.items_per_page,
-                query: list_resp.query,
-                items,
-                next_cursor: list_resp.next_cursor,
-            }))
-        }
-
-        let message = match fragment.message {
-            Some(msg) => Some(match &fragment.message_type {
-                MessageType::ValidationFailure => msg_arm!(ValidationFailure, msg),
-                MessageType::WorkAgency => msg_arm!(WorkAgency, msg),
-                MessageType::Prefix => msg_arm!(Prefix, msg),
-                MessageType::Type => msg_arm!(Type, msg),
-                MessageType::TypeList => msg_arm!(TypeList, msg, CrossrefType),
-                MessageType::Work => msg_arm!(Work, msg),
-                MessageType::WorkList => work_list(msg).map_err(::serde::de::Error::custom)?,
-                MessageType::Member => msg_arm!(Member, msg),
-                MessageType::MemberList => msg_arm!(MemberList, msg, Member),
-                MessageType::Journal => msg_arm!(Journal, msg),
-                MessageType::JournalList => msg_arm!(JournalList, msg, Journal),
-                MessageType::Funder => msg_arm!(Funder, msg),
-                MessageType::FunderList => msg_arm!(FunderList, msg, Funder),
-                MessageType::RouteNotFound => Message::RouteNotFound,
-            }),
-            _ => None,
-        };
-        Ok(Response {
-            status: fragment.status,
-            message_type: fragment.message_type,
-            message_version: fragment.message_version,
-            message,
-        })
+        matches!(&self.message, Message::RouteNotFound(_))
     }
 }
 
 macro_rules! impl_list_response {
-    ($($name:ident<$ty:ty>,)*) => {
+    ($($(#[$meta:meta])* $name:ident<$ty:ty> { $($extra:tt)* })*) => {
     $(
+        $(#[$meta])*
         #[derive(Debug, Clone, Deserialize, Serialize)]
         #[serde(rename_all = "kebab-case")]
-        #[allow(missing_docs)]
         pub struct $name {
-             /// if facets where part in the request they are also included in the response
-            #[serde(default)]
-            pub facets: FacetMap,
             /// the number of items that match the response
             pub total_results: usize,
             /// crossref responses for large number of items are divided in pages, number of elements to expect in `items`
@@ -235,25 +88,51 @@ macro_rules! impl_list_response {
             pub query: Option<QueryResponse>,
             /// all actual message items of the response
             pub items: Vec<$ty>,
+            $($extra)*
         }
     )+
     };
 }
+
 impl_list_response!(
-    TypeList<CrossrefType>,
-    MemberList<Member>,
-    JournalList<Journal>,
-    FunderList<Funder>,
+    /// the payload of a `/types` response
+    TypeList<CrossrefType> {
+        /// if facets were part of the request they are also included in the response
+        #[serde(default)]
+        pub facets: FacetMap,
+    }
+    /// the payload of a `/members` response
+    MemberList<Member> {
+        /// if facets were part of the request they are also included in the response
+        #[serde(default)]
+        pub facets: FacetMap,
+    }
+    /// the payload of a `/funders` response
+    FunderList<Funder> {
+        /// if facets were part of the request they are also included in the response
+        #[serde(default)]
+        pub facets: FacetMap,
+    }
+    /// the payload of a `/journals` response
+    ///
+    /// Carries no facets: `/journals` rejects the `facet` parameter, so the
+    /// field this type used to have was always an empty map synthesized by the
+    /// deserializer.
+    JournalList<Journal> {}
+    /// the payload of a `/licenses` response
+    ///
+    /// Carries neither facets nor a query echo -- `/licenses` sends neither.
+    LicenseList<LicenseCount> {}
 );
 
-/// the different payloads of a response
+/// the different payloads of a response, and the `message-type` that names them
 #[derive(Debug, Clone, Deserialize, Serialize)]
-#[serde(untagged)]
+#[serde(tag = "message-type", content = "message", rename_all = "kebab-case")]
 pub enum Message {
     /// if a request failed on the server side
     ValidationFailure(Failures),
     /// a route could not be found on the server side
-    RouteNotFound,
+    RouteNotFound(String),
     /// the agency for a specific work
     WorkAgency(WorkAgency),
     /// metadata data for the DOI owner prefix
@@ -278,68 +157,42 @@ pub enum Message {
     Funder(Box<Funder>),
     /// a list of funder
     FunderList(FunderList),
+    /// a list of licenses works in the crossref metadata are published under
+    LicenseList(LicenseList),
 }
 
-impl TryFrom<(MessageType, serde_json::Value)> for Message {
-    type Error = Error;
-    fn try_from(value: (MessageType, serde_json::Value)) -> Result<Self, Self::Error> {
-        match value {
-            (MessageType::ValidationFailure, value) => {
-                let failures: Failures = from_value(value)?;
-                Ok(Message::ValidationFailure(failures))
-            }
-            (MessageType::WorkAgency, value) => {
-                let work_agency: WorkAgency = from_value(value)?;
-                Ok(Message::WorkAgency(work_agency))
-            }
-            (MessageType::Prefix, value) => {
-                let prefix: Prefix = from_value(value)?;
-                Ok(Message::Prefix(prefix))
-            }
-            (MessageType::Type, value) => {
-                let type_: CrossrefType = from_value(value)?;
-                Ok(Message::Type(type_))
-            }
-            (MessageType::TypeList, value) => {
-                let type_list: TypeList = from_value(value)?;
-                Ok(Message::TypeList(type_list))
-            }
-            (MessageType::Work, value) => {
-                let work = Work::try_from(value)?;
-                Ok(Message::Work(Box::new(work)))
-            }
-            (MessageType::WorkList, value) => {
-                let list_resp = WorkList::try_from(value)?;
-                Ok(Message::WorkList(list_resp))
-            }
-            (MessageType::Member, value) => {
-                let member: Member = from_value(value)?;
-                Ok(Message::Member(Box::new(member)))
-            }
-            (MessageType::MemberList, value) => {
-                let list_resp: MemberList = from_value(value)?;
-                Ok(Message::MemberList(list_resp))
-            }
-            (MessageType::Journal, value) => {
-                let journal = Journal::try_from(value)?;
-                Ok(Message::Journal(Box::new(journal)))
-            }
-            (MessageType::JournalList, value) => {
-                let list_resp = JournalList::try_from(value)?;
-                Ok(Message::JournalList(list_resp))
-                
-            }
-            (MessageType::Funder, value) => {
-                let funder: Funder = from_value(value)?;
-                Ok(Message::Funder(Box::new(funder)))
-            }
-            (MessageType::FunderList, value) => {
-                let list_resp: FunderList = from_value(value)?;
-                Ok(Message::FunderList(list_resp))
-            }
-            (MessageType::RouteNotFound, _) => Ok(Message::RouteNotFound),
+impl Message {
+    /// the `message-type` crossref labelled this payload with
+    pub fn message_type(&self) -> MessageType {
+        match self {
+            Message::ValidationFailure(_) => MessageType::ValidationFailure,
+            Message::RouteNotFound(_) => MessageType::RouteNotFound,
+            Message::WorkAgency(_) => MessageType::WorkAgency,
+            Message::Prefix(_) => MessageType::Prefix,
+            Message::Type(_) => MessageType::Type,
+            Message::TypeList(_) => MessageType::TypeList,
+            Message::Work(_) => MessageType::Work,
+            Message::WorkList(_) => MessageType::WorkList,
+            Message::Member(_) => MessageType::Member,
+            Message::MemberList(_) => MessageType::MemberList,
+            Message::Journal(_) => MessageType::Journal,
+            Message::JournalList(_) => MessageType::JournalList,
+            Message::Funder(_) => MessageType::Funder,
+            Message::FunderList(_) => MessageType::FunderList,
+            Message::LicenseList(_) => MessageType::LicenseList,
         }
     }
+}
+
+/// how many works in the crossref metadata are published under one license
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct LicenseCount {
+    /// link to the web page describing the license
+    #[serde(rename = "URL")]
+    pub url: String,
+    /// how many works crossref holds that are published under it
+    pub work_count: usize,
 }
 
 
@@ -396,6 +249,7 @@ pub enum MessageType {
     MemberList,
     Journal,
     JournalList,
+    LicenseList,
     ValidationFailure,
     RouteNotFound,
 }
@@ -416,6 +270,7 @@ impl MessageType {
             MessageType::TypeList => "type-list",
             MessageType::Journal => "journal",
             MessageType::JournalList => "journal-list",
+            MessageType::LicenseList => "license-list",
             MessageType::ValidationFailure => "validation-failure",
             MessageType::RouteNotFound => "route-not-found",
         }
@@ -441,6 +296,7 @@ impl std::str::FromStr for MessageType {
             "type-list" => Ok(MessageType::TypeList),
             "journal" => Ok(MessageType::Journal),
             "journal-list" => Ok(MessageType::JournalList),
+            "license-list" => Ok(MessageType::LicenseList),
             "validation-failure" => Ok(MessageType::ValidationFailure),
             "route-not-found" => Ok(MessageType::RouteNotFound),
             _ => Err(Error::InvalidTypeName {
@@ -466,42 +322,6 @@ pub struct QueryResponse {
     pub search_terms: Option<String>,
 }
 
-impl TryFrom<serde_json::Value> for QueryResponse {
-    type Error = Error;
-
-    fn try_from(value: Value) -> Result<Self, Self::Error> {
-        match value {
-            Value::Object(map) => {
-                let start_index = map.get("start-index").ok_or_else(|| Error::MissingField {
-                    msg: "start-index".to_string(),
-                })?;
-                let search_terms = if let Some(v) = map.get("search-terms") {
-                    match v {
-                        Value::String(s) => Some(s.to_string()),
-                        _ => None,
-                    }
-                } else {
-                    None
-                };
-
-                Ok(QueryResponse {
-                    start_index: start_index
-                        .as_u64()
-                        .ok_or_else(|| Error::InvalidField {
-                            msg: "start-index".to_string(),
-                        })? as usize,
-                    search_terms,
-                })
-            }
-            _ => Err(Error::InvalidField {
-                msg: "query".to_string(),
-            }),
-        }
-    }
-}
-
-// TODO impl CrossrefRoute for QueryResponse
-
 /// facets are returned as map
 pub type FacetMap = HashMap<String, FacetItem>;
 
@@ -513,53 +333,6 @@ pub struct FacetItem {
     pub value_count: usize,
     /// contains the
     pub values: HashMap<String, usize>,
-}
-
-impl TryFrom<serde_json::Value> for FacetItem {
-    type Error = Error;
-
-  fn try_from(value: serde_json::Value) -> Result<Self, Self::Error> {
-
-    match value {
-        Value::Object(map) => {
-            let value_count = map.get("value-count").ok_or_else(|| Error::MissingField {
-                msg: "value-count".to_string(),
-            })?;
-            let values = map.get("values").ok_or_else(|| Error::MissingField {
-                msg: "values".to_string(),
-            })?;
-
-            let values = match values {
-                Value::Object(map) => {
-                    let mut values = HashMap::new();
-                    for (k, v) in map.iter() {
-                        let v = v.as_u64().ok_or_else(|| Error::InvalidField {
-                            msg: "value".to_string(),
-                        })?;
-                        values.insert(k.to_string(), v as usize);
-                    }
-                    values
-                }
-                _ => return Err(Error::InvalidField {
-                    msg: "values".to_string(),
-                }),
-            };
-
-            Ok(FacetItem {
-                value_count: value_count
-                    .as_u64()
-                    .ok_or_else(|| Error::InvalidField {
-                        msg: "value-count".to_string(),
-                    })? as usize,
-                values,
-            })
-        }
-        _ => Err(Error::InvalidField {
-            msg: "facet".to_string(),
-        }),
-    }
-      
-  }
 }
 
 /// everything crossref objected to in a rejected request
@@ -770,7 +543,7 @@ mod tests {
 
         let agency: Response = from_str(agency_str).unwrap();
 
-        assert!(agency.is_work_ageny());
+        assert!(agency.is_work_agency());
     }
 
     #[test]

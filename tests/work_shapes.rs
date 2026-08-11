@@ -22,7 +22,8 @@ fn parse(case: &str) -> Work {
         .get(case)
         .unwrap_or_else(|| panic!("fixture has no `{case}` case"));
 
-    Work::try_from(value.clone()).unwrap_or_else(|err| panic!("`{case}` failed to parse: {err}"))
+    serde_json::from_value(value.clone())
+        .unwrap_or_else(|err| panic!("`{case}` failed to parse: {err}"))
 }
 
 #[test]
@@ -80,9 +81,26 @@ fn a_content_domain_without_a_restriction_flag_reads_as_unrestricted() {
 }
 
 #[test]
-fn an_assertion_explanation_can_be_a_url_object() {
-    use crossref_client::response::work::Explanation;
+fn a_peer_review_carries_typed_review_and_relation_metadata() {
+    // both fields used to be `HashMap<String, serde_json::Value>`, so the
+    // `Review` and `Relation` structs beside them were never constructed
+    let work = parse("peer_review_with_relations");
 
+    let review = work.review.expect("a peer review carries review metadata");
+    assert!(!review.type_.is_empty());
+
+    let relations = work.relation.expect("a peer review relates to its subject");
+    let reviewed = relations
+        .get("is-review-of")
+        .expect("the work under review");
+    assert!(
+        reviewed.iter().all(|relation| relation.id.is_some()),
+        "every related item identifies what it points at: {reviewed:?}"
+    );
+}
+
+#[test]
+fn an_assertion_explanation_is_a_url() {
     let explanations: Vec<_> = parse("assertion_explanation_object")
         .assertion
         .expect("the work has assertions")
@@ -93,7 +111,7 @@ fn an_assertion_explanation_can_be_a_url_object() {
     assert!(
         explanations
             .iter()
-            .any(|explanation| matches!(explanation, Explanation::Url { .. })),
+            .any(|explanation| explanation.url.contains("://")),
         "expected a `{{\"URL\": …}}` explanation, got {explanations:?}"
     );
 }

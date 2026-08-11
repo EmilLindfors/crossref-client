@@ -299,8 +299,19 @@ pub use self::query::{
     Funders, FundersQuery, Journals, JournalsQuery, Members, MembersQuery, Prefixes, Type, Types,
 };
 pub use self::response::{
-    CrossrefType, Funder, FunderList, Journal, JournalList, Member, MemberList, TypeList, Work,
-    WorkAgency, WorkList,
+    CrossrefType, Failure, Failures, Funder, FunderList, Journal, JournalList, LicenseCount,
+    LicenseList, Member, MemberList, MessageType, TypeList, Work, WorkAgency, WorkList,
+};
+
+/// The types that appear in the public fields of a [`Work`], re-exported so a
+/// caller of [`Crossref::works`] can name them without reaching into
+/// [`response::work`].
+#[doc(inline)]
+pub use self::response::work::{
+    Affiliation, Agency, Assertion, AssertionGroup, ClinicalTrialNumber, ContentDomain,
+    Contributor, Date, DateField, DateParts, Explanation, FundingBody, ISSN, InstitutionId, Issue,
+    License, PartialDate, Reference, RelatedItems, Relation, Relations, ResourceLink, Review,
+    Update,
 };
 
 pub(crate) use self::response::{Message, Response};
@@ -312,28 +323,23 @@ pub(crate) use self::response::{Message, Response};
 pub use async_iterator::Iterator as AsyncIterator;
 
 use crate::limit::{Limiter, retry_after};
-use crate::response::{MessageType, Prefix};
+use crate::response::Prefix;
 use reqwest::{Client, StatusCode};
 use std::sync::Arc;
 
+/// Unwraps the payload a route is expected to answer with, or reports what
+/// crossref sent instead.
 macro_rules! get_item {
-    ($ident:ident, $value:expr, $got:expr) => {
-        if let Some(msg) = $value {
-            match msg {
-                Message::$ident(item) => Ok(item),
-                _ => Err(Error::UnexpectedItem {
-                    expected: MessageType::$ident,
-                    got: $got,
-                }
-                .into()),
-            }
-        } else {
-            Err(Error::MissingMessage {
+    ($ident:ident, $response:expr) => {{
+        let response = $response;
+        match response.message {
+            Message::$ident(item) => Ok(item),
+            other => Err(Error::UnexpectedItem {
                 expected: MessageType::$ident,
-            }
-            .into())
+                got: other.message_type(),
+            }),
         }
-    };
+    }};
 }
 
 macro_rules! impl_combined_works_query {
@@ -343,7 +349,7 @@ macro_rules! impl_combined_works_query {
         ///
         pub async fn $name(&self, ident: WorksIdentQuery) -> Result<WorkList> {
             let resp = self.get_response(&$component::Works(ident)).await?;
-            get_item!(WorkList, resp.message, resp.message_type)
+            get_item!(WorkList, resp)
         })+
     };
 }
@@ -422,8 +428,11 @@ impl Crossref {
             });
         }
 
-        let json: serde_json::Value = Self::into_success(response).await?.json().await?;
-        Response::try_from(json)
+        // deserialized here rather than through `reqwest`'s `json()` so a
+        // shape crossref changed surfaces as `Error::Serde`, which names the
+        // field that failed
+        let body = Self::into_success(response).await?.bytes().await?;
+        serde_json::from_slice(&body).map_err(|error| Error::Serde { error })
     }
 
     /// Sends a `GET`, pacing it against the rate limit and retrying a `429`.
@@ -480,7 +489,7 @@ impl Crossref {
 
         match serde_json::from_str::<Response>(&body) {
             Ok(Response {
-                message: Some(Message::ValidationFailure(failures)),
+                message: Message::ValidationFailure(failures),
                 ..
             }) => Err(Error::ValidationFailure { failures }),
             _ => Err(status.into()),
@@ -534,7 +543,7 @@ impl Crossref {
     pub async fn works<T: Into<WorkListQuery>>(&self, query: T) -> Result<WorkList> {
         let resp = self.get_response(&query.into()).await?;
 
-        get_item!(WorkList, resp.message, resp.message_type)
+        get_item!(WorkList, resp)
     }
 
     /// Return the `Work` that is identified by  the `doi`.
@@ -546,7 +555,7 @@ impl Crossref {
         let resp = self
             .get_response(&Works::Identifier(doi.to_string()))
             .await?;
-        get_item!(Work, resp.message, resp.message_type).map(|x| *x)
+        get_item!(Work, resp).map(|x| *x)
     }
 
     /// [Deep paging results](https://github.com/CrossRef/rest-api-doc#deep-paging-with-cursors)
@@ -651,13 +660,13 @@ impl Crossref {
     ///
     pub async fn work_agency(&self, doi: &str) -> Result<WorkAgency> {
         let resp = self.get_response(&Works::Agency(doi.to_string())).await?;
-        get_item!(WorkAgency, resp.message, resp.message_type)
+        get_item!(WorkAgency, resp)
     }
 
     /// Return the matching `Funders` items.
     pub async fn funders(&self, funders: FundersQuery) -> Result<FunderList> {
         let resp = self.get_response(&Funders::Query(funders)).await?;
-        get_item!(FunderList, resp.message, resp.message_type)
+        get_item!(FunderList, resp)
     }
 
     /// Return the `Funder` for the `id`
@@ -665,13 +674,13 @@ impl Crossref {
         let resp = self
             .get_response(&Funders::Identifier(id.to_string()))
             .await?;
-        get_item!(Funder, resp.message, resp.message_type).map(|x| *x)
+        get_item!(Funder, resp).map(|x| *x)
     }
 
     /// Return the matching `Members` items.
     pub async fn members(&self, members: MembersQuery) -> Result<MemberList> {
         let resp = self.get_response(&Members::Query(members)).await?;
-        get_item!(MemberList, resp.message, resp.message_type)
+        get_item!(MemberList, resp)
     }
 
     /// Return the `Member` for the `id`
@@ -679,7 +688,7 @@ impl Crossref {
         let resp = self
             .get_response(&Members::Identifier(member_id.to_string()))
             .await?;
-        get_item!(Member, resp.message, resp.message_type).map(|x| *x)
+        get_item!(Member, resp).map(|x| *x)
     }
 
     /// Return the `Prefix` for the `id`
@@ -687,7 +696,7 @@ impl Crossref {
         let resp = self
             .get_response(&Prefixes::Identifier(id.to_string()))
             .await?;
-        get_item!(Prefix, resp.message, resp.message_type)
+        get_item!(Prefix, resp)
     }
     /// Return a specific `Journal`
     pub async fn journal(&self, id: &str) -> Result<Journal> {
@@ -695,7 +704,7 @@ impl Crossref {
             .get_response(&Journals::Identifier(id.to_string()))
             .await?;
 
-        get_item!(Journal, resp.message, resp.message_type).map(|x| *x)
+        get_item!(Journal, resp).map(|x| *x)
     }
 
     /// Return the matching `Journal` items.
@@ -714,13 +723,13 @@ impl Crossref {
     /// ```
     pub async fn journals(&self, journals: JournalsQuery) -> Result<JournalList> {
         let resp = self.get_response(&Journals::Query(journals)).await?;
-        get_item!(JournalList, resp.message, resp.message_type)
+        get_item!(JournalList, resp)
     }
 
     /// Return all available `Type`
     pub async fn types(&self) -> Result<TypeList> {
         let resp = self.get_response(&Types::All).await?;
-        get_item!(TypeList, resp.message, resp.message_type)
+        get_item!(TypeList, resp)
     }
 
     /// Return the `Type` for the `id`
@@ -728,7 +737,7 @@ impl Crossref {
         let resp = self
             .get_response(&Types::Identifier(id.id().to_string()))
             .await?;
-        get_item!(Type, resp.message, resp.message_type)
+        get_item!(Type, resp)
     }
 
     /// Get a random set of DOIs
@@ -985,7 +994,7 @@ impl async_iterator::Iterator for WorkListIterator<'_> {
         }
 
         let page = match self.client.get_response(&self.query).await {
-            Ok(resp) => get_item!(WorkList, resp.message, resp.message_type),
+            Ok(resp) => get_item!(WorkList, resp),
             Err(err) => Err(err),
         };
 

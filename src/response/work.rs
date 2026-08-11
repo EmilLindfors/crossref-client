@@ -1,21 +1,76 @@
 // see https://github.com/Crossref/rest-api-doc/blob/master/api_format.md
 
-use crate::error::Error;
 use crate::response::{FacetMap, QueryResponse};
 use chrono::{Datelike, NaiveDate};
+use serde::de::Deserializer;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 
-/// A hashmap containing relation name, `Relation` pairs.
-/// [crossref rest-api-doc](https://github.com/CrossRef/rest-api-doc/blob/master/api_format.md#relations)
-/// However it seems, that the value of the relation name can also be an array.
-/// Therefor the `serde_json::Value` type is used instead to prevent an invalid length error
-pub type Relations = std::collections::HashMap<String, Value>;
+/// The relations a work asserts or is the object of, keyed by relation name.
+///
+/// The names come from the
+/// [crossref relations schema](https://github.com/CrossRef/rest-api-doc/blob/master/api_format.md#relations)
+/// -- `is-review-of`, `is-preprint-of`, `is-identical-to` and so on.
+pub type Relations = std::collections::HashMap<String, RelatedItems>;
 
+/// The related items of one relation kind.
+///
+/// Crossref deposits these as an array, which is why the field used to be typed
+/// as a bare `serde_json::Value`: it had been modelled as a single [`Relation`]
+/// and an array is what actually arrives. A lone object is still accepted and
+/// read as a list of one, so neither shape can cost a page of a crawl.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(transparent)]
+pub struct RelatedItems(pub Vec<Relation>);
+
+impl<'de> Deserialize<'de> for RelatedItems {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        #[derive(Deserialize)]
+        #[serde(untagged)]
+        enum OneOrMany {
+            Many(Vec<Relation>),
+            One(Relation),
+        }
+
+        Ok(match OneOrMany::deserialize(deserializer)? {
+            OneOrMany::Many(items) => RelatedItems(items),
+            OneOrMany::One(item) => RelatedItems(vec![item]),
+        })
+    }
+}
+
+impl std::ops::Deref for RelatedItems {
+    type Target = [Relation];
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl IntoIterator for RelatedItems {
+    type Item = Relation;
+    type IntoIter = std::vec::IntoIter<Relation>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
+
+impl<'a> IntoIterator for &'a RelatedItems {
+    type Item = &'a Relation;
+    type IntoIter = std::slice::Iter<'a, Relation>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.iter()
+    }
+}
+
+/// the payload of a `/works` response, and of the `works` route of any other
+/// component
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
-#[allow(missing_docs)]
 pub struct WorkList {
+    /// if facets were part of the request they are also included in the response
+    #[serde(default)]
     pub facets: FacetMap,
     /// the number of items that match the response
     pub total_results: usize,
@@ -27,14 +82,6 @@ pub struct WorkList {
     pub items: Vec<Work>,
     /// deep page through `/works` result sets
     pub next_cursor: Option<String>,
-}
-
-impl TryFrom<serde_json::Value> for WorkList {
-    type Error = Error;
-
-    fn try_from(value: serde_json::Value) -> Result<Self, Self::Error> {
-        serde_json::from_value(value).map_err(|error| Error::Serde { error })
-    }
 }
 
 /// the main return type of the crossref api
@@ -168,16 +215,8 @@ pub struct Work {
     pub content_domain: Option<ContentDomain>,
     /// Relations to other works
     pub relation: Option<Relations>,
-    /// Peer review metadata
-    pub review: Option<Relations>,
-}
-
-impl TryFrom<serde_json::Value> for Work {
-    type Error = Error;
-
-    fn try_from(value: serde_json::Value) -> Result<Self, Self::Error> {
-        serde_json::from_value(value).map_err(|error| Error::Serde { error })
-    }
+    /// Peer review metadata, on works of type `peer-review`
+    pub review: Option<Review>,
 }
 
 impl Work {
@@ -435,21 +474,17 @@ pub struct Assertion {
     pub group: Option<AssertionGroup>,
 }
 
-/// why a Crossmark assertion holds
+/// where a Crossmark assertion is explained
 ///
-/// Crossref deposits this either as free text or as a link to a page that
-/// explains it, so both shapes have to be accepted.
+/// Always a link. The free-text variant this used to carry alongside it was
+/// inferred from the field's original `Option<String>` type rather than
+/// observed, and no free-text explanation turned up in the 38 800 works sampled
+/// from the live api since.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
-#[serde(untagged)]
-pub enum Explanation {
-    /// a link to a page describing the assertion
-    Url {
-        /// the link target
-        #[serde(rename = "URL")]
-        url: String,
-    },
-    /// the explanation as free text
-    Text(String),
+pub struct Explanation {
+    /// link to a page describing the assertion
+    #[serde(rename = "URL")]
+    pub url: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]

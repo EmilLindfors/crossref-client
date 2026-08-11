@@ -11,13 +11,6 @@ pub type Result<T> = result::Result<T, Error>;
 #[derive(Debug, ThisError)]
 #[non_exhaustive]
 pub enum Error {
-    /// if a message type was invalid
-    #[error("invalid message type: {name}")]
-    InvalidMessageType {
-        /// the message type that was invalid
-        name: String,
-    },
-
     /// if an invalid type was requested
     #[error("invalid type name: {name}")]
     InvalidTypeName {
@@ -37,20 +30,6 @@ pub enum Error {
     /// a config error
     #[error("{msg}")]
     Config {
-        /// the notification
-        msg: String,
-    },
-
-    /// a field the client requires was absent from the response
-    #[error("{msg}")]
-    MissingField {
-        /// the notification
-        msg: String,
-    },
-
-    /// a field of the response could not be interpreted
-    #[error("{msg}")]
-    InvalidField {
         /// the notification
         msg: String,
     },
@@ -87,13 +66,6 @@ pub enum Error {
         limit: RateLimit,
     },
 
-    /// When no message was found but expected
-    #[error("No message found but expected message of type `{expected}`")]
-    MissingMessage {
-        /// the message type this client expected
-        expected: MessageType,
-    },
-
     /// When crossref could not find anything
     #[error("Nothing was found for resource `{resource}`")]
     ResourceNotFound {
@@ -107,26 +79,5 @@ pub enum Error {
         /// the underlying (de)serialization error
         #[from]
         error: serde_json::Error,
-    },
-
-    /// a DOI did not have the shape crossref expects
-    #[error("{error}")]
-    DoiValidationError {
-        /// the notification
-        error: String,
-    },
-
-    /// the client was misused
-    #[error("{error}")]
-    ClientError {
-        /// the notification
-        error: String,
-    },
-
-    /// a result control could not be parsed
-    #[error("{error}")]
-    InvalidResultControl {
-        /// the notification
-        error: String,
     },
 }

@@ -3,10 +3,6 @@ use std::collections::HashMap;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-use crate::error::Error;
-
-use super::{JournalList, QueryResponse};
-
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "kebab-case")]
@@ -127,39 +123,6 @@ impl Journal {
             .unwrap_or_default();
         years.sort_by_key(|(year, _)| *year);
         years
-    }
-}
-
-impl TryFrom<serde_json::Value> for Journal {
-    type Error = Error;
-
-    fn try_from(value: serde_json::Value) -> Result<Self, Self::Error> {
-        serde_json::from_value(value).map_err(|error| Error::Serde { error })
-    }
-}
-
-impl TryFrom<serde_json::Value> for JournalList {
-    type Error = Error;
-
-    fn try_from(value: serde_json::Value) -> Result<Self, Self::Error> {
-        #[derive(Deserialize)]
-        #[serde(rename_all = "kebab-case")]
-        struct Raw {
-            total_results: usize,
-            items_per_page: Option<usize>,
-            query: Option<QueryResponse>,
-            items: Vec<Journal>,
-        }
-
-        let raw: Raw = serde_json::from_value(value).map_err(|error| Error::Serde { error })?;
-
-        Ok(JournalList {
-            total_results: raw.total_results,
-            items_per_page: raw.items_per_page,
-            query: raw.query,
-            facets: HashMap::new(),
-            items: raw.items,
-        })
     }
 }
 
