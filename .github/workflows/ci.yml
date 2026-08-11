@@ -4,9 +4,9 @@ on:
   push:
     branches: [master]
   pull_request:
-  # the shape check against the live api is worth re-running on its own
-  # schedule, since crossref keeps adding fields and members keep depositing
-  # new gaps
+  # the checks against the live api are worth re-running on their own schedule:
+  # crossref keeps adding fields to the records and names to the vocabularies
+  # each route accepts, and members keep depositing new gaps
   schedule:
     - cron: "0 6 * * 1"
 

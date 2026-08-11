@@ -6,9 +6,11 @@
 
 use crossref_client::query::ResultControl;
 use crossref_client::{
-    CnFormat, Crossref, Error, FieldQuery, JournalsQuery, LicensesQuery, Type, WorkElement,
-    WorkResultControl, WorksFilter, WorksIdentQuery, WorksQuery,
+    CnFormat, Crossref, Error, FieldQuery, FundersFilter, JournalsQuery, LicensesQuery,
+    MembersFilter, Sort, Type, WorkElement, WorkResultControl, WorksFilter, WorksIdentQuery,
+    WorksQuery,
 };
+use std::collections::BTreeSet;
 use std::future::Future;
 use std::sync::OnceLock;
 use tokio::runtime::Runtime;
@@ -44,6 +46,183 @@ fn api_test<F: Future<Output = ()>>(test: impl FnOnce(Crossref) -> F) {
     });
 
     runtime.block_on(test(client.clone()));
+}
+
+/// Fetches `route`, waiting out a `429` rather than reading its empty body.
+///
+/// These requests do not go through the suite's client -- asking for a filter
+/// that does not exist is exactly what the typed api prevents -- so they are
+/// outside the budget it paces itself against and have to honour the limit
+/// themselves.
+async fn refused_body(route: &str) -> String {
+    static PROBE: OnceLock<reqwest::Client> = OnceLock::new();
+
+    let client = PROBE.get_or_init(|| {
+        let agent = match contact_email() {
+            Some(email) => format!("crossref-client (mailto:{email})"),
+            None => "crossref-client".to_string(),
+        };
+        reqwest::Client::builder()
+            .user_agent(agent)
+            .build()
+            .expect("a probe client")
+    });
+
+    for attempt in 0..5u32 {
+        let response = client
+            .get(format!("https://api.crossref.org/{route}"))
+            .send()
+            .await
+            .expect("a response");
+
+        if response.status() != reqwest::StatusCode::TOO_MANY_REQUESTS {
+            return response.text().await.expect("a body");
+        }
+
+        let wait = response
+            .headers()
+            .get(reqwest::header::RETRY_AFTER)
+            .and_then(|value| value.to_str().ok())
+            .and_then(|value| value.parse().ok())
+            .unwrap_or(1 << attempt);
+        tokio::time::sleep(std::time::Duration::from_secs(wait)).await;
+    }
+
+    panic!("crossref rate limited `{route}` five times over");
+}
+
+/// The names crossref lists in the `400` it answers `route` with.
+///
+/// Every one of those messages ends in the vocabulary it does know, after the
+/// last `: ` -- "Valid filters for this route are: a, b, c" for a filter, a
+/// select or a field query, and "must be one of: a, b, c" for a sort field.
+async fn vocabulary_crossref_reports(route: &str) -> Vec<String> {
+    let body = refused_body(route).await;
+    let body: serde_json::Value = serde_json::from_str(&body)
+        .unwrap_or_else(|err| panic!("`{route}` answered with `{body}`, which is not json: {err}"));
+
+    let message = body["message"][0]["message"]
+        .as_str()
+        .unwrap_or_else(|| panic!("`{route}` was not refused with a message: {body}"));
+    let (_, listed) = message
+        .rsplit_once(": ")
+        .unwrap_or_else(|| panic!("`{message}` lists no vocabulary"));
+
+    listed
+        .split(',')
+        .map(|name| name.trim().to_string())
+        .collect()
+}
+
+/// Diffs this crate's vocabulary for a route against the one crossref reports,
+/// in both directions, and reports what does not line up.
+///
+/// The same check the unit tests make against a snapshot of these lists. This
+/// is what catches crossref having changed one since the snapshot was taken:
+/// a name added to a route that this crate cannot yet express, or one retired
+/// that it still sends.
+fn vocabulary_drift(kind: &str, ours: &[&str], theirs: &[String]) -> Vec<String> {
+    let mine: BTreeSet<&str> = ours.iter().copied().collect();
+    let theirs: BTreeSet<&str> = theirs.iter().map(String::as_str).collect();
+
+    let rejected: Vec<_> = mine.difference(&theirs).collect();
+    let unreachable: Vec<_> = theirs.difference(&mine).collect();
+
+    let mut drift = Vec::new();
+    if !rejected.is_empty() {
+        drift.push(format!(
+            "{kind} this crate sends that crossref no longer accepts: {rejected:?}"
+        ));
+    }
+    if !unreachable.is_empty() {
+        drift.push(format!(
+            "{kind} crossref has added that this crate cannot express: {unreachable:?}"
+        ));
+    }
+    drift
+}
+
+/// Checks every vocabulary this crate pins against the live api.
+///
+/// The unit tests compare these lists against a snapshot copied out of
+/// crossref's own `400` bodies, which only catches a name this crate got wrong
+/// -- not one crossref has since changed. This asks the api itself, by sending
+/// each route something it has to refuse, and reads the list it answers with.
+///
+/// One test rather than one per vocabulary: the probes cannot go through the
+/// client, so nothing paces them but running them in order.
+#[test]
+fn every_vocabulary_this_crate_pins_still_matches_the_api() {
+    api_test(|client| async move {
+        let select: Vec<&str> = WorkElement::ALL.iter().map(WorkElement::name).collect();
+        let sort: Vec<&str> = Sort::ALL.iter().map(Sort::as_str).collect();
+
+        let probes: [(&str, &str, &[&str]); 6] = [
+            (
+                "/works filters",
+                "works?filter=not-a-filter:1",
+                WorksFilter::ALL_NAMES,
+            ),
+            (
+                "/works field queries",
+                "works?query.not-a-field=x",
+                FieldQuery::ALL_FIELDS,
+            ),
+            (
+                "/works select elements",
+                "works?select=not-an-element",
+                &select,
+            ),
+            ("/works sort fields", "works?sort=not-a-sort", &sort),
+            (
+                "/funders filters",
+                "funders?filter=not-a-filter:1",
+                FundersFilter::ALL_NAMES,
+            ),
+            (
+                "/members filters",
+                "members?filter=not-a-filter:1",
+                MembersFilter::ALL_NAMES,
+            ),
+        ];
+
+        let mut drift = Vec::new();
+        for (kind, route, ours) in probes {
+            drift.extend(vocabulary_drift(
+                kind,
+                ours,
+                &vocabulary_crossref_reports(route).await,
+            ));
+        }
+
+        // the work types are a list route rather than a rejection, so they come
+        // back through the client like any other response
+        let types = client.types().await.expect("a type list");
+        let ids: Vec<String> = types.items.iter().map(|type_| type_.id.clone()).collect();
+        let ours: Vec<&str> = Type::ALL.iter().map(Type::id).collect();
+        drift.extend(vocabulary_drift("work types", &ours, &ids));
+
+        // the label is display text and crossref rewords it -- `book-part` was
+        // "Book Part" until it became "Part"
+        for type_ in &types.items {
+            if let Ok(known) = type_.id.parse::<Type>() {
+                if known.label() != type_.label {
+                    drift.push(format!(
+                        "crossref relabelled `{}` from `{}` to `{}`",
+                        type_.id,
+                        known.label(),
+                        type_.label
+                    ));
+                }
+            }
+        }
+
+        assert!(
+            drift.is_empty(),
+            "the api has moved on:\n{}",
+            drift.join("\n")
+        );
+    });
 }
 
 #[test]
@@ -149,6 +328,26 @@ fn selected_elements_narrow_the_response() {
             assert_eq!(None, work.created);
             assert_eq!(None, work.publisher);
         }
+    });
+}
+
+#[test]
+fn a_select_that_leaves_the_doi_out_still_returns_works() {
+    api_test(|client| async move {
+        // `Work` requires a DOI, so the query asks for one whether or not the
+        // caller did -- without that this comes back as a page of works none of
+        // which deserialize
+        let works = client
+            .works(
+                WorksQuery::empty()
+                    .elements(vec![WorkElement::Title])
+                    .result_control(WorkResultControl::Standard(ResultControl::Rows(5))),
+            )
+            .await
+            .expect("a work list selected without the DOI");
+
+        assert_eq!(5, works.items.len());
+        assert!(works.items.iter().all(|work| !work.doi.is_empty()));
     });
 }
 
