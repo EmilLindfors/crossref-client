@@ -43,5 +43,5 @@ cli = [
 
 [[bin]]
 name = "crossref"
-path = "src/bin/crossref.rs"
+path = "src/bin/crossref/main.rs"
 required-features = ["cli"]

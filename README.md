@@ -344,13 +344,17 @@ Top level subcommands
 Usage: crossref <COMMAND>
 
 Commands:
-  works     Query crossref works
-  funders   Query crossref funders
-  members   Query crossref members
-  journals  Query crossref journals
-  prefixes  Query crossref prefixes
-  types     Query crossref types
-  help      Print this message or the help of the given subcommand(s)
+  works      Query crossref works
+  cite       Resolve bibtex citation keys, e.g. `@LindforsJakobsen2022`, to the works they cite
+  funders    Query crossref funders
+  members    Query crossref members
+  journals   Query crossref journals
+  licenses   List the licenses crossref works are published under
+  prefixes   Query crossref prefixes
+  types      Query crossref types
+  transform  Re-serialize a work into another format through content negotiation
+  styles     List the CSL styles a citation can be rendered in
+  help       Print this message or the help of the given subcommand(s)
 
 Options:
   -h, --help     Print help
@@ -369,19 +373,42 @@ Commands:
   type     Get Works of a specific Type
 
 Options:
-  -d, --deep-page                Enable deep paging. If a limit is set, then the limit takes priority
-  -o, --output <OUTPUT>          output path where the results shall be stored
-  -a, --append                   if the output file already exists, append instead of overwriting the file
-  -l, --limit <LIMIT>            limit the amount of results
-  -i, --id <ID>                  The id of component
-  -q, --query <QUERY_TERMS>      The free form terms for the query
-      --sort <SORT>              How to sort the results, such as updated, indexed, published, issued
-      --order <ORDER>            How to order the results: asc or desc
-      --sample <SAMPLE>          Request random elements. Overrides all other options
-      --offset <OFFSET>          Sets an offset where crossref begins to retrieve items
+  -i, --id <ID>                         The DOI of a single work. Omit to search by query terms
+      --user-agent <USER_AGENT>         The user agent to use for the crossref client
+  -d, --deep-page                       Enable deep paging. If a limit is set, then the limit takes priority
+      --token <TOKEN>                   The token to use for the crossref client
+      --polite <POLITE>                 The email to use to get into crossref's polite pool
+  -q, --query <QUERY_TERMS>             The free form terms for the query
+  -l, --limit <LIMIT>                   limit the amount of results
+  -o, --output <OUTPUT>                 output path where the results shall be stored
+  -a, --append                          if the output file already exists, append instead of overwriting the file
+      --offset <OFFSET>                 Sets an offset where crossref begins to retrieve items
+      --query-bibliographic <CITATION>  Match a whole reference against titles, authors, ISSNs and publication years at once. Crossref's own citation look up
+      --query-title <TERM>              Match against a work's title, including its subtitle
+      --query-author <TERM>             Match against author given and family names
+      --query-field <FIELD=TERM>        Match against any other field, e.g. `--query-field container-title=Nature`. Repeat for more fields; an unknown field lists every one crossref takes
+      --filter <NAME[:VALUE]>           Narrow the results, e.g. `--filter from-pub-date:2020-01-01` or `--filter has-abstract`. Repeat to narrow further; every filter is ANDed
+      --sort <SORT>                     How to sort the results, such as updated, indexed, published, issued
+      --order <ORDER>                   How to order the results: asc or desc
+      --sample <SAMPLE>                 Request random works. Crossref ignores every other option when set
+```
+
+The `cite` subcommand
+```text
+Usage: crossref cite [OPTIONS] <KEY>...
+
+Arguments:
+  <KEY>...  The citation keys, with or without their leading `@`
+
+Options:
+      --candidates <CANDIDATES>  How many works to weigh against the key per attempt [default: 20]
+      --year-window <YEARS>      How many years either side of the key's year still count as the same publication [default: 1]
+      --spellings <SPELLINGS>    How many accented spellings to guess at when the key as written finds nothing [default: 12]
       --user-agent <USER_AGENT>  The user agent to use for the crossref client
       --token <TOKEN>            The token to use for the crossref client
       --polite <POLITE>          The email to use to get into crossref's polite pool
+  -o, --output <OUTPUT>          output path where the results shall be stored
+  -a, --append                   if the output file already exists, append instead of overwriting the file
 ```
 
 ### Examples
@@ -411,11 +438,147 @@ This works for every subcommand
 crossref <works|journals|members|prefixes|types> --id "10.1037/0003-066X.59.1.29" -o output.json
 ```
 
-Query with paging and ordering
+Query with paging
 
 ```shell
-crossref <works|funders|members> --query "machine learning" --limit 10 --offset 200 --order asc
+crossref <works|funders|members> --query "machine learning" --limit 10 --offset 200
 ```
+
+Sorting and ordering are `works` only; the other routes answer them with a `400`.
+
+```shell
+crossref works --query "machine learning" --limit 10 --sort issued --order asc
+```
+
+Look a reference up by its citation. `--query-bibliographic` is crossref's own
+reference matching: it reads titles, authors, ISSNs and publication years out of
+the string together, and finds the work where the same words split across
+`--query` would not.
+
+```shell
+crossref works --limit 1 \
+  --query-bibliographic "Feynman, R. (1960). There's Plenty of Room at the Bottom. Engineering and Science, 23(5)."
+```
+
+Match single fields instead of the whole record. `--query-title` and
+`--query-author` are the two that have their own flags; every other field
+`/works` takes goes through `--query-field field=term`, which can be repeated.
+
+```shell
+crossref works --query-title "room at the bottom" --query-author feynman
+crossref works --query-author feynman --query-field container-title="Engineering and Science"
+```
+
+A field can only be matched against one term, so asking for the same one twice
+is an error rather than a silently dropped flag.
+
+Narrow what comes back with `--filter`, which takes any of the 90 filters
+`/works` accepts, as `name` for the ones that ask whether a record has
+something and `name:value` for the ones that ask what it is. Repeat the flag to
+narrow further; crossref ANDs them.
+
+```shell
+crossref works --query-title salmon \
+  --filter from-pub-date:2023-01-01 --filter until-pub-date:2023-12-31 \
+  --filter has-abstract --filter type:journal-article
+```
+
+The name and the value are both read before anything is sent, so a misspelled
+filter lists the ones that exist and `--filter from-pub-date:2020` says that a
+year is not a date, rather than crossref answering with a `400` or, worse, an
+unnarrowed result set.
+
+`funders` and `members` take `--filter` too, each narrowing by its own
+vocabulary -- `location` belongs to `/funders` alone, and `/works` answers it
+with a `400`. `journals` and `licenses` narrow by nothing, so they offer no
+such flag.
+
+```shell
+crossref funders --filter location:Norway
+crossref members --filter prefix:10.1016 --filter current-doi-count:1000
+```
+
+A filter belonging to another route is refused with the ones this route does
+take:
+
+```console
+$ crossref funders --filter has-abstract
+error: invalid value 'has-abstract' for '--filter <NAME[:VALUE]>':
+`has-abstract` is not a filter this route takes. Try one of: location
+```
+
+### Resolving citation keys
+
+`cite` takes the bibtex keys a bibliography is written in and finds the works
+they stand for.
+
+```shell
+crossref cite @LindforsJakobsen2022 @Hopp_Coffay_Lindfors_2023
+```
+
+A key carries no title, only surnames and a year, so crossref cannot be trusted
+to have returned the right work -- it answers every query with something. Each
+candidate is therefore checked against the key before it is reported: the key's
+surnames have to be credited, in the order the key gives them, starting at the
+first author, and the year has to be within `--year-window` (one year either
+way by default, since a work published online in one year and in an issue the
+next is cited by both).
+
+The verdict says how much the answer is worth.
+
+| verdict | what it means |
+| --- | --- |
+| `matched` | one work, and the key vouches for it. `doi` and the whole `work` are reported |
+| `ambiguous` | several works the key vouches for, and nothing in the key to choose between them. All of them are listed |
+| `unmatched` | nothing the key vouches for. The nearest misses are listed with the reason each was turned down |
+
+```json
+[
+  {
+    "key": "LindforsJakobsen2022",
+    "surnames": ["Lindfors", "Jakobsen"],
+    "year": 2022,
+    "et-al": false,
+    "verdict": "matched",
+    "requests": 1,
+    "doi": "10.1016/j.marpol.2021.104855",
+    "work": { "...": "the whole work" }
+  }
+]
+```
+
+So the DOI of a key is
+
+```shell
+crossref cite @LindforsJakobsen2022 | jq -r '.[] | select(.verdict == "matched") | .doi'
+```
+
+`cite` exits `0` only when every key resolved to exactly one work, so a
+bibliography can be checked in a script. The report is written either way -- a
+key that resolved to nothing, or to several works, is an answer rather than an
+error.
+
+```shell
+# every key in a .bib, checked against crossref
+grep -o '@[a-z]*{[^,]*' refs.bib | cut -d'{' -f2 | xargs crossref cite --polite you@example.com \
+  || echo "some keys did not resolve"
+```
+
+#### Keys that lost their diacritics
+
+Citation keys are written in ascii and crossref folds nothing, so
+`query.author=Floysand` finds the works of a different person and
+`query.author=Fløysand` is the only way to reach `@FloysandEtAl2021`. When the
+key as written finds nothing, `cite` guesses the marks back one letter at a
+time, likeliest first, and reports the spelling that worked as `matched-as`.
+
+```shell
+crossref cite @FloysandEtAl2021        # three requests: as written, as a citation, then Fløysand
+```
+
+Each guess costs a request, so `--spellings` caps how many are made (twelve by
+default, `0` to make none). Verification folds both spellings together, so a key
+written either way is checked against metadata written either way.
 
 Get the works of a specific member
 
