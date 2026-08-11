@@ -384,6 +384,27 @@ is returned. Pass `--deep-page` to page through the whole result set with a curs
 crossref works --deep-page --query "machine learning" -o all.json
 ```
 
+## Where the api's own behaviour is written down
+
+When a route answers something this crate did not expect, these are the places
+to look before assuming the bug is here:
+
+* [The swagger UI](https://api.crossref.org/swagger-ui/index.html) — the
+  routes and their parameters, as the api reports them today.
+* [`CrossRef/rest-api-doc`](https://github.com/CrossRef/rest-api-doc) — the
+  prose documentation, including the
+  [work record format](https://github.com/CrossRef/rest-api-doc/blob/master/api_format.md)
+  every response type here is modelled on.
+* [Crossref's public issue board](https://crossref.atlassian.net/jira/software/c/projects/CR/list/?jql=project%20%3D%20CR%20ORDER%20BY%20cf%5B10019%5D%20ASC)
+  — the `CR` project, open to read without an account. Api bugs, indexing
+  gaps and in-flight changes are tracked here, so a filter that stopped
+  matching or a field that changed shape usually has a ticket before it has an
+  explanation anywhere else.
+
+The live suite (`cargo test --test integration`) asks the api the same
+questions and is the fastest way to tell a change on crossref's side from a
+change on this one.
+
 ## License
 
 Licensed under either of these:

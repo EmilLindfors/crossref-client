@@ -3,6 +3,12 @@
 //! `crossref-client` is a hard fork of [`crossref-rs`](https://github.com/MattsSe/crossref-rs)
 //! and has diverged substantially from it; changes are not upstreamed.
 //!
+//! When a route answers something this crate did not expect, the api documents
+//! itself in [the swagger UI](https://api.crossref.org/swagger-ui/index.html)
+//! and in [`CrossRef/rest-api-doc`](https://github.com/CrossRef/rest-api-doc),
+//! and its bugs and in-flight changes are tracked in the open on
+//! [crossref's own issue board](https://crossref.atlassian.net/jira/software/c/projects/CR/list/?jql=project%20%3D%20CR%20ORDER%20BY%20cf%5B10019%5D%20ASC).
+//!
 //! The [`Crossref`] client provides methods matching the Crossref API routes:
 
 //! * `works` - `/works` route
