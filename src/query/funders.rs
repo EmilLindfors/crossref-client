@@ -1,6 +1,6 @@
 use crate::error::Result;
 use crate::query::facet::FacetCount;
-use crate::query::works::{WorksCombiner, WorksFilter, WorksIdentQuery, WorksQuery};
+use crate::query::works::{WorksCombiner, WorksIdentQuery};
 use crate::query::*;
 use std::borrow::Cow;
 
@@ -21,11 +21,11 @@ impl FundersFilter {
 }
 
 impl ParamFragment for FundersFilter {
-    fn key(&self) -> Cow<str> {
+    fn key(&self) -> Cow<'_, str> {
         Cow::Borrowed(self.name())
     }
 
-    fn value(&self) -> Option<Cow<str>> {
+    fn value(&self) -> Option<Cow<'_, str>> {
         match self {
             FundersFilter::Location(s) => Some(Cow::Borrowed(s.as_str())),
         }

@@ -1,5 +1,5 @@
 use crate::error::Result;
-use crate::query::works::{WorksCombiner, WorksFilter, WorksIdentQuery, WorksQuery};
+use crate::query::works::{WorksCombiner, WorksIdentQuery};
 use crate::query::{Component, CrossrefQuery, CrossrefRoute, ResourceComponent};
 
 /// constructs the request payload for the `/prefixes` route

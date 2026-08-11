@@ -1,11 +1,11 @@
-use std::{collections::HashMap, hash::Hash};
+use std::collections::HashMap;
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-use crate::{error::ErrorKind, CrossrefQuery};
+use crate::error::Error;
 
-use super::{JournalList, MessageType, QueryResponse};
+use super::{JournalList, QueryResponse};
 
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -82,227 +82,84 @@ pub struct Flags {
 //    pub backfile: Coverage,
 //}
 
+/// The per-year DOI counts crossref reports for a journal.
+#[derive(Debug, Deserialize, Serialize, Clone, Default)]
+#[serde(rename_all = "kebab-case")]
+pub struct Breakdowns {
+    /// `(year, number of DOIs issued that year)` pairs, in the order crossref returned them
+    #[serde(default)]
+    pub dois_by_issued_year: Vec<(i64, i64)>,
+}
+
 #[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "kebab-case")]
 pub struct Journal {
+    /// when crossref last checked the journal's status, if ever
+    #[serde(with = "chrono::serde::ts_milliseconds_option", default)]
     pub last_status_check_time: Option<DateTime<Utc>>,
-    pub counts: Counts,
-    pub breakdowns: Vec<(i64, i64)>, // You can use Value to represent dynamic data
+    /// total/current/backfile DOI counts; crossref returns `null` for journals it has not tallied
+    pub counts: Option<Counts>,
+    /// DOI counts per issued year; crossref returns `null` for journals it has not tallied
+    pub breakdowns: Option<Breakdowns>,
     pub publisher: String,
     pub coverage: Option<serde_json::Value>,
     pub title: String,
+    #[serde(default)]
     pub subjects: Vec<String>,
     pub coverage_type: Option<serde_json::Value>,
-    pub flags: Vec<(String, bool)>,
-    #[serde(rename = "ISSN")]
+    /// the `deposits-*` flags crossref records for the journal, keyed by flag name
+    pub flags: Option<HashMap<String, bool>>,
+    #[serde(rename = "ISSN", default)]
     pub issn: Vec<String>,
+    #[serde(default)]
     pub issn_type: Vec<IssnType>,
 }
 
+impl Journal {
+    /// `(year, DOI count)` pairs sorted ascending by year.
+    ///
+    /// Empty if crossref reported no breakdown for this journal.
+    pub fn dois_by_issued_year(&self) -> Vec<(i64, i64)> {
+        let mut years = self
+            .breakdowns
+            .as_ref()
+            .map(|b| b.dois_by_issued_year.clone())
+            .unwrap_or_default();
+        years.sort_by_key(|(year, _)| *year);
+        years
+    }
+}
+
 impl TryFrom<serde_json::Value> for Journal {
-    type Error = ErrorKind;
+    type Error = Error;
 
     fn try_from(value: serde_json::Value) -> Result<Self, Self::Error> {
-        match value {
-            serde_json::Value::Object(map) => {
-                let last_status_check_time = map
-                    .get("last-status-check-time")
-                    .ok_or(ErrorKind::MissingField {
-                        msg: "last-status-check-time".to_string(),
-                    })?
-                    .as_i64()
-                    .ok_or(ErrorKind::InvalidTypeName {
-                        name: "last-status-check-time".to_string(),
-                    })?;
-                let counts = map
-                    .get("counts")
-                    .ok_or(ErrorKind::MissingField {
-                        msg: "counts".to_string(),
-                    })?
-                    .as_object()
-                    .ok_or(ErrorKind::InvalidTypeName {
-                        name: "counts".to_string(),
-                    })?;
-                let mut breakdowns: Vec<(i64, i64)> = map
-                    .get("breakdowns")
-                    .ok_or(ErrorKind::MissingField {
-                        msg: "breakdowns".to_string(),
-                    })?
-                    .get("dois-by-issued-year")
-                    .ok_or(ErrorKind::MissingField {
-                        msg: "dois-by-issued-year".to_string(),
-                    })?
-                    .as_array()
-                    .ok_or(ErrorKind::InvalidTypeName {
-                        name: "breakdowns".to_string(),
-                    })?
-                    .iter()
-                    .map(|v| {
-                        let arr = v.as_array().unwrap();
-                        (arr[0].as_i64().unwrap(), arr[1].as_i64().unwrap())
-                    })
-                    .collect();
-
-                breakdowns.sort_by(|a, b| a.0.cmp(&b.0));
-
-                let publisher = map
-                    .get("publisher")
-                    .ok_or(ErrorKind::MissingField {
-                        msg: "publisher".to_string(),
-                    })?
-                    .as_str()
-                    .ok_or(ErrorKind::InvalidTypeName {
-                        name: "publisher".to_string(),
-                    })?
-                    .to_string();
-
-                let title = map
-                    .get("title")
-                    .ok_or(ErrorKind::MissingField {
-                        msg: "title".to_string(),
-                    })?
-                    .as_str()
-                    .ok_or(ErrorKind::InvalidTypeName {
-                        name: "title".to_string(),
-                    })?
-                    .to_string();
-
-                let subjects = map
-                    .get("subjects")
-                    .ok_or(ErrorKind::MissingField {
-                        msg: "subjects".to_string(),
-                    })?
-                    .as_array()
-                    .ok_or(ErrorKind::InvalidTypeName {
-                        name: "subjects".to_string(),
-                    })?
-                    .iter()
-                    .map(|v| v.as_str().unwrap().to_string())
-                    .collect();
-
-                let coverage = map.get("coverage").map(|v| v.clone());
-
-                let coverage_type = map.get("coverage-type").map(|v| v.clone());
-
-                let flags = map
-                    .get("flags")
-                    .ok_or(ErrorKind::MissingField {
-                        msg: "flags".to_string(),
-                    })?
-                    .as_object()
-                    .ok_or(ErrorKind::InvalidTypeName {
-                        name: "flags".to_string(),
-                    })?
-                    .iter()
-                    .map(|(k, v)| (k.to_string(), v.as_bool().unwrap()))
-                    .collect();
-
-                let issn = map
-                    .get("ISSN")
-                    .ok_or(ErrorKind::MissingField {
-                        msg: "ISSN".to_string(),
-                    })?
-                    .as_array()
-                    .ok_or(ErrorKind::InvalidTypeName {
-                        name: "ISSN".to_string(),
-                    })?
-                    .iter()
-                    .map(|v| v.as_str().unwrap().to_string())
-                    .collect();
-
-                let issn_type = map
-                    .get("issn-type")
-                    .ok_or(ErrorKind::MissingField {
-                        msg: "issn-type".to_string(),
-                    })?
-                    .as_array()
-                    .ok_or(ErrorKind::InvalidTypeName {
-                        name: "issn-type".to_string(),
-                    })?
-                    .iter()
-                    .map(|v| serde_json::from_value(v.clone()).unwrap())
-                    .collect();
-
-                let last_status_check_time =
-                    DateTime::from_timestamp_millis(last_status_check_time);
-
-                Ok(Journal {
-                    last_status_check_time,
-                    counts: serde_json::from_value(serde_json::Value::Object(counts.clone()))
-                        .unwrap(),
-                    breakdowns,
-                    publisher,
-                    coverage,
-                    title,
-                    subjects,
-                    coverage_type,
-                    flags,
-                    issn,
-                    issn_type,
-                })
-            }
-            _ => Err(ErrorKind::InvalidMessageType {
-                name: value.to_string(),
-            }),
-        }
+        serde_json::from_value(value).map_err(|error| Error::Serde { error })
     }
 }
 
 impl TryFrom<serde_json::Value> for JournalList {
-    type Error = ErrorKind;
+    type Error = Error;
 
     fn try_from(value: serde_json::Value) -> Result<Self, Self::Error> {
-        match value {
-            serde_json::Value::Object(map) => {
-                let total_results = map.get("total-results").unwrap().as_i64().unwrap() as usize;
-
-                let items_per_page = map
-                    .get("items-per-page")
-                    .map(|v| v.as_i64().unwrap() as usize);
-
-                let query = map
-                    .get("query")
-                    .map(|v| match v {
-                        serde_json::Value::Object(map) => {
-                            let start_index =
-                                map.get("start-index").unwrap().as_i64().unwrap() as usize;
-                            let query = map
-                                .get("search_terms")
-                                .map(|v| v.as_str().unwrap().to_string());
-                            Some(QueryResponse {
-                                start_index,
-                                search_terms: query,
-                            })
-                        }
-                        _ => None,
-                    })
-                    .flatten();
-
-                let items = map
-                    .get("items")
-                    .ok_or(ErrorKind::MissingField {
-                        msg: "items".to_string(),
-                    })?
-                    .as_array()
-                    .ok_or(ErrorKind::InvalidTypeName {
-                        name: "items".to_string(),
-                    })?
-                    .iter()
-                    .map(|v| Journal::try_from(v.clone()).unwrap())
-                    .collect();
-
-                Ok(JournalList {
-                    total_results,
-                    items_per_page,
-                    query,
-                    facets: HashMap::new(),
-                    items,
-                })
-            }
-            _ => Err(ErrorKind::InvalidMessageType {
-                name: value.to_string(),
-            }),
+        #[derive(Deserialize)]
+        #[serde(rename_all = "kebab-case")]
+        struct Raw {
+            total_results: usize,
+            items_per_page: Option<usize>,
+            query: Option<QueryResponse>,
+            items: Vec<Journal>,
         }
+
+        let raw: Raw = serde_json::from_value(value).map_err(|error| Error::Serde { error })?;
+
+        Ok(JournalList {
+            total_results: raw.total_results,
+            items_per_page: raw.items_per_page,
+            query: raw.query,
+            facets: HashMap::new(),
+            items: raw.items,
+        })
     }
 }
 
@@ -310,6 +167,7 @@ impl TryFrom<serde_json::Value> for JournalList {
 #[serde(rename_all = "kebab-case")]
 pub struct IssnType {
     pub value: String,
+    /// `print`, `electronic` or `link`; crossref leaves this `null` for some journals
     #[serde(rename = "type")]
-    pub type_: String, // Renamed to type_ to avoid keyword conflict
+    pub type_: Option<String>,
 }

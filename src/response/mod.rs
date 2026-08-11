@@ -1,16 +1,14 @@
 mod journal;
 pub use journal::*;
-use crate::error::ErrorKind;
-use crate::query::facet::Facet;
-use crate::query::facet::FacetCount;
+use crate::error::Error;
 use crate::query::Visibility;
 use crate::response::work::*;
-use failure::Fail;
 use serde::de::Deserializer;
 use serde::{Deserialize, Serialize};
 use serde_json::{from_value, Value};
 use std::collections::HashMap;
 use std::fmt;
+use std::str::FromStr;
 
 //pub use crate::response::journal::Journal;
 /// provides the types for a work response
@@ -34,26 +32,26 @@ pub struct Response {
 }
 
 impl TryFrom<serde_json::Value> for Response {
-    type Error = ErrorKind;
+    type Error = Error;
 
     fn try_from(value: Value) -> Result<Self, Self::Error> {
         match value {
             Value::Object(map) => {
-                let status = map.get("status").ok_or_else(|| ErrorKind::MissingField {
+                let status = map.get("status").ok_or_else(|| Error::MissingField {
                     msg: "status".to_string(),
                 })?;
                 let message_type =
                     map.get("message-type")
-                        .ok_or_else(|| ErrorKind::MissingField {
+                        .ok_or_else(|| Error::MissingField {
                             msg: "message-type".to_string(),
                         })?;
                 let message_type = MessageType::from_str(message_type.as_str().ok_or_else(
-                            || ErrorKind::InvalidField {
+                            || Error::InvalidField {
                                 msg: "message-type".to_string(),
                             },
                         )?)?;
                 let message_version = map.get("message-version").map_or("1.0.0", |v| v.as_str().unwrap());
-                let message = map.get("message").ok_or_else(|| ErrorKind::MissingField {
+                let message = map.get("message").ok_or_else(|| Error::MissingField {
                     msg: "message".to_string(),
                 })?;
 
@@ -62,7 +60,7 @@ impl TryFrom<serde_json::Value> for Response {
                 Ok(Response {
                     status: status
                         .as_str()
-                        .ok_or_else(|| ErrorKind::InvalidField {
+                        .ok_or_else(|| Error::InvalidField {
                             msg: "status".to_string(),
                         })?
                         .to_string(),
@@ -71,7 +69,7 @@ impl TryFrom<serde_json::Value> for Response {
                     message: Some(message),
                 })
             }
-            _ => Err(ErrorKind::InvalidField {
+            _ => Err(Error::InvalidField {
                 msg: "response".to_string(),
             }),
         }
@@ -117,10 +115,7 @@ impl Response {
 
     /// checks whether the `message` holds a variant of `RouteNotFound`
     pub fn is_route_not_found(&self) -> bool {
-        match &self.message {
-            Some(Message::RouteNotFound) => true,
-            _ => false,
-        }
+        matches!(&self.message, Some(Message::RouteNotFound))
     }
 }
 
@@ -280,44 +275,44 @@ pub enum Message {
 }
 
 impl TryFrom<(MessageType, serde_json::Value)> for Message {
-    type Error = ErrorKind;
+    type Error = Error;
     fn try_from(value: (MessageType, serde_json::Value)) -> Result<Self, Self::Error> {
         match value {
             (MessageType::ValidationFailure, value) => {
-                let failures: Failures = from_value(value).map_err(|e| {
-                    ErrorKind::InvalidField {
+                let failures: Failures = from_value(value).map_err(|_e| {
+                    Error::InvalidField {
                         msg: "error parsing message as failures".to_string(),
                     }
                 })?;
                 Ok(Message::ValidationFailure(failures))
             }
             (MessageType::WorkAgency, value) => {
-                let work_agency: WorkAgency = from_value(value).map_err(|e| {
-                    ErrorKind::InvalidField {
+                let work_agency: WorkAgency = from_value(value).map_err(|_e| {
+                    Error::InvalidField {
                         msg: "error parsing message as work-agency".to_string(),
                     }
                 })?;
                 Ok(Message::WorkAgency(work_agency))
             }
             (MessageType::Prefix, value) => {
-                let prefix: Prefix = from_value(value).map_err(|e| {
-                    ErrorKind::InvalidField {
+                let prefix: Prefix = from_value(value).map_err(|_e| {
+                    Error::InvalidField {
                         msg: "error parsing message as prefix".to_string(),
                     }
                 })?;
                 Ok(Message::Prefix(prefix))
             }
             (MessageType::Type, value) => {
-                let type_: CrossrefType = from_value(value).map_err(|e| {
-                    ErrorKind::InvalidField {
+                let type_: CrossrefType = from_value(value).map_err(|_e| {
+                    Error::InvalidField {
                         msg: "error parsing message as type".to_string(),
                     }
                 })?;
                 Ok(Message::Type(type_))
             }
             (MessageType::TypeList, value) => {
-                let type_list: TypeList = from_value(value).map_err(|e| {
-                    ErrorKind::InvalidField {
+                let type_list: TypeList = from_value(value).map_err(|_e| {
+                    Error::InvalidField {
                         msg: "error parsing message as type-list".to_string(),
                     }
                 })?;
@@ -328,24 +323,24 @@ impl TryFrom<(MessageType, serde_json::Value)> for Message {
                 Ok(Message::Work(Box::new(work)))
             }
             (MessageType::WorkList, value) => {
-                let list_resp = WorkList::try_from(value).map_err(|e| {
-                    ErrorKind::InvalidField {
+                let list_resp = WorkList::try_from(value).map_err(|_e| {
+                    Error::InvalidField {
                         msg: "error parsing message as work-list".to_string(),
                     }
                 })?;
                 Ok(Message::WorkList(list_resp))
             }
             (MessageType::Member, value) => {
-                let member: Member = from_value(value).map_err(|e| {
-                    ErrorKind::InvalidField {
+                let member: Member = from_value(value).map_err(|_e| {
+                    Error::InvalidField {
                         msg: "error parsing message as member".to_string(),
                     }
                 })?;
                 Ok(Message::Member(Box::new(member)))
             }
             (MessageType::MemberList, value) => {
-                let list_resp: MemberList = from_value(value).map_err(|e| {
-                    ErrorKind::InvalidField {
+                let list_resp: MemberList = from_value(value).map_err(|_e| {
+                    Error::InvalidField {
                         msg: "error parsing message as member-list".to_string(),
                     }
                 })?;
@@ -357,34 +352,30 @@ impl TryFrom<(MessageType, serde_json::Value)> for Message {
             }
             (MessageType::JournalList, value) => {
                 let list_resp = JournalList::try_from(value).map_err(|e| {
-                    ErrorKind::InvalidField {
-                        msg: format!("Error parsing journal-list: {}", e.to_string()),
+                    Error::InvalidField {
+                        msg: format!("Error parsing journal-list: {}", e),
                     }
                 })?;
                 Ok(Message::JournalList(list_resp))
                 
             }
             (MessageType::Funder, value) => {
-                let funder: Funder = from_value(value).map_err(|e| {
-                    ErrorKind::InvalidField {
+                let funder: Funder = from_value(value).map_err(|_e| {
+                    Error::InvalidField {
                         msg: "error parsing message as funder".to_string(),
                     }
                 })?;
                 Ok(Message::Funder(Box::new(funder)))
             }
             (MessageType::FunderList, value) => {
-                let list_resp: FunderList = from_value(value).map_err(|e| {
-                    ErrorKind::InvalidField {
+                let list_resp: FunderList = from_value(value).map_err(|_e| {
+                    Error::InvalidField {
                         msg: "error parsing message as funder-list".to_string(),
                     }
                 })?;
                 Ok(Message::FunderList(list_resp))
             }
             (MessageType::RouteNotFound, _) => Ok(Message::RouteNotFound),
-            e => Err(ErrorKind::InvalidMessageType {
-                name: e.1.to_string(),
-            }),
-
         }
     }
 }
@@ -398,11 +389,11 @@ pub struct CrossrefType {
     pub label: String,
 }
 
-impl Into<CrossrefType> for crate::query::types::Type {
-    fn into(self) -> CrossrefType {
+impl From<crate::query::types::Type> for CrossrefType {
+    fn from(val: crate::query::types::Type) -> Self {
         CrossrefType {
-            id: self.id().to_string(),
-            label: self.label().to_string(),
+            id: val.id().to_string(),
+            label: val.label().to_string(),
         }
     }
 }
@@ -468,8 +459,13 @@ impl MessageType {
         }
     }
 
-    /// creates a `MessageType` from a string
-    pub fn from_str(s: &str) -> Result<MessageType, ErrorKind> {
+}
+
+impl std::str::FromStr for MessageType {
+    type Err = Error;
+
+    /// creates a `MessageType` from its crossref identifier
+    fn from_str(s: &str) -> Result<MessageType, Error> {
         match s {
             "work-agency" => Ok(MessageType::WorkAgency),
             "funder" => Ok(MessageType::Funder),
@@ -485,7 +481,7 @@ impl MessageType {
             "journal-list" => Ok(MessageType::JournalList),
             "validation-failure" => Ok(MessageType::ValidationFailure),
             "route-not-found" => Ok(MessageType::RouteNotFound),
-            _ => Err(ErrorKind::InvalidTypeName {
+            _ => Err(Error::InvalidTypeName {
                 name: s.to_string(),
             }),
         }
@@ -509,12 +505,12 @@ pub struct QueryResponse {
 }
 
 impl TryFrom<serde_json::Value> for QueryResponse {
-    type Error = ErrorKind;
+    type Error = Error;
 
     fn try_from(value: Value) -> Result<Self, Self::Error> {
         match value {
             Value::Object(map) => {
-                let start_index = map.get("start-index").ok_or_else(|| ErrorKind::MissingField {
+                let start_index = map.get("start-index").ok_or_else(|| Error::MissingField {
                     msg: "start-index".to_string(),
                 })?;
                 let search_terms = if let Some(v) = map.get("search-terms") {
@@ -529,13 +525,13 @@ impl TryFrom<serde_json::Value> for QueryResponse {
                 Ok(QueryResponse {
                     start_index: start_index
                         .as_u64()
-                        .ok_or_else(|| ErrorKind::InvalidField {
+                        .ok_or_else(|| Error::InvalidField {
                             msg: "start-index".to_string(),
                         })? as usize,
                     search_terms,
                 })
             }
-            _ => Err(ErrorKind::InvalidField {
+            _ => Err(Error::InvalidField {
                 msg: "query".to_string(),
             }),
         }
@@ -558,16 +554,16 @@ pub struct FacetItem {
 }
 
 impl TryFrom<serde_json::Value> for FacetItem {
-    type Error = ErrorKind;
+    type Error = Error;
 
   fn try_from(value: serde_json::Value) -> Result<Self, Self::Error> {
 
     match value {
         Value::Object(map) => {
-            let value_count = map.get("value-count").ok_or_else(|| ErrorKind::MissingField {
+            let value_count = map.get("value-count").ok_or_else(|| Error::MissingField {
                 msg: "value-count".to_string(),
             })?;
-            let values = map.get("values").ok_or_else(|| ErrorKind::MissingField {
+            let values = map.get("values").ok_or_else(|| Error::MissingField {
                 msg: "values".to_string(),
             })?;
 
@@ -575,14 +571,14 @@ impl TryFrom<serde_json::Value> for FacetItem {
                 Value::Object(map) => {
                     let mut values = HashMap::new();
                     for (k, v) in map.iter() {
-                        let v = v.as_u64().ok_or_else(|| ErrorKind::InvalidField {
+                        let v = v.as_u64().ok_or_else(|| Error::InvalidField {
                             msg: "value".to_string(),
                         })?;
                         values.insert(k.to_string(), v as usize);
                     }
                     values
                 }
-                _ => return Err(ErrorKind::InvalidField {
+                _ => return Err(Error::InvalidField {
                     msg: "values".to_string(),
                 }),
             };
@@ -590,13 +586,13 @@ impl TryFrom<serde_json::Value> for FacetItem {
             Ok(FacetItem {
                 value_count: value_count
                     .as_u64()
-                    .ok_or_else(|| ErrorKind::InvalidField {
+                    .ok_or_else(|| Error::InvalidField {
                         msg: "value-count".to_string(),
                     })? as usize,
                 values,
             })
         }
-        _ => Err(ErrorKind::InvalidField {
+        _ => Err(Error::InvalidField {
             msg: "facet".to_string(),
         }),
     }
@@ -737,7 +733,7 @@ pub struct RefPrefix {
     pub reference_visibility: Option<Visibility>,
 }
 
-/// response item for the `/journal/{id}` route
+// response item for the `/journal/{id}` route
 //#[derive(Debug, Clone, Deserialize, Serialize)]
 //#[serde(rename_all = "kebab-case")]
 //#[allow(missing_docs)]

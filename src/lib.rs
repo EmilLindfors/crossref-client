@@ -15,9 +15,9 @@
 
 //! ### Create a `Crossref` client:
 
-//! ```edition2018
-//! # use crossref::Crossref;
-//! # fn run() -> Result<(), crossref::Error> {
+//! ```no_run
+//! # use crossref_rs::Crossref;
+//! # async fn run() -> Result<(), crossref_rs::Error> {
 //! let client = Crossref::builder().build()?;
 //! # Ok(())
 //! # }
@@ -25,9 +25,9 @@
 //!
 //! If you have an [Authorization token for Crossref's Plus service](https://github.com/CrossRef/rest-api-doc#authorization-token-for-plus-service):
 //!
-//! ```edition2018
-//! # use crossref::Crossref;
-//! # fn run() -> Result<(), crossref::Error> {
+//! ```no_run
+//! # use crossref_rs::Crossref;
+//! # async fn run() -> Result<(), crossref_rs::Error> {
 //! let client = Crossref::builder()
 //! .token("token")
 //! .build()?;
@@ -41,9 +41,9 @@
 //!
 //! To get into Crossref's polite pool include a email address
 //!
-//! ```edition2018
-//! # use crossref::Crossref;
-//! # fn run() -> Result<(), crossref::Error> {
+//! ```no_run
+//! # use crossref_rs::Crossref;
+//! # async fn run() -> Result<(), crossref_rs::Error> {
 //! let client = Crossref::builder()
 //!     .polite("polite@example.com")
 //!     .token("your token")
@@ -58,9 +58,9 @@
 //!
 //! Otherwise creating queries works the same for all resource components:
 //!
-//! ```edition2018
-//! # use crossref::*;
-//! # fn run() -> Result<()> {
+//! ```no_run
+//! # use crossref_rs::*;
+//! # async fn run() -> crossref_rs::Result<()> {
 //! let query = WorksQuery::new("Machine Learning")
 //! // field queries supported for `Works`
 //! .field_query(FieldQuery::author("Some Author"))
@@ -85,8 +85,8 @@
 //!
 //! This resembles in the enums of the resource components, eg. for `Members`:
 //!
-//! ```edition2018
-//! # use crossref::query::*;
+//! ```no_run
+//! # use crossref_rs::query::*;
 //! pub enum Members {
 //!     /// target a specific member at `/members/{id}`
 //!     Identifier(String),
@@ -103,44 +103,44 @@
 //!
 //! Analogous methods exist for all resource components
 //!
-//! ```edition2018
-//! # use crossref::*;
-//! # fn run() -> Result<()> {
+//! ```no_run
+//! # use crossref_rs::*;
+//! # async fn run() -> crossref_rs::Result<()> {
 //! # let client = Crossref::builder().build()?;
-//! let work = client.work("10.1037/0003-066X.59.1.29")?;
+//! let work = client.work("10.1037/0003-066X.59.1.29").await?;
 //!
-//! let agency = client.work_agency("10.1037/0003-066X.59.1.29")?;
+//! let agency = client.work_agency("10.1037/0003-066X.59.1.29").await?;
 //!
-//! let funder = client.funder("funder_id")?;
+//! let funder = client.funder("funder_id").await?;
 //!
-//! let member = client.member("member_id")?;
+//! let member = client.member("member_id").await?;
 //! # Ok(())
 //! # }
 //! ```
 //!
 //! **Query**
 //!
-//! ```edition2018
-//! # use crossref::*;
-//! # fn run() -> Result<()> {
+//! ```no_run
+//! # use crossref_rs::*;
+//! # async fn run() -> crossref_rs::Result<()> {
 //! # let client = Crossref::builder().build()?;
 //! let query = WorksQuery::new("Machine Learning");
 //!
 //! // one page of the matching results
-//! let works = client.works(query)?;
+//! let works = client.works(query).await?;
 //! # Ok(())
 //! # }
 //! ```
 //!
 //! Alternatively insert a free form query term directly
 //!
-//! ```edition2018
-//! # use crossref::*;
-//! # fn run() -> Result<()> {
+//! ```no_run
+//! # use crossref_rs::*;
+//! # async fn run() -> crossref_rs::Result<()> {
 //! # let client = Crossref::builder().build()?;
 //!
 //! // one page of the matching results
-//! let works = client.works("Machine Learning")?;
+//! let works = client.works("Machine Learning").await?;
 //! # Ok(())
 //! # }
 //! ```
@@ -149,25 +149,25 @@
 //!
 //! For each resource component other than `Works` there exist methods to append a `WorksQuery` with the ID option `/members/{member_id}/works?<query>?`
 //!
-//! ```edition2018
-//! # use crossref::*;
-//! # fn run() -> Result<()> {
+//! ```no_run
+//! # use crossref_rs::*;
+//! # async fn run() -> crossref_rs::Result<()> {
 //! # let client = Crossref::builder().build()?;
 //! let works = client.member_works( WorksQuery::new("machine learning")
-//! .sort(Sort::Score).into_ident("member_id"))?;
+//! .sort(Sort::Score).into_ident("member_id")).await?;
 //! # Ok(())
 //! # }
 //! ```
 //!
 //! This would be the same as using the [`Crossref::works`] method by supplying the combined type
 //!
-//! ```edition2018
-//! # use crossref::*;
-//! # fn run() -> Result<()> {
+//! ```no_run
+//! # use crossref_rs::*;
+//! # async fn run() -> crossref_rs::Result<()> {
 //! # let client = Crossref::builder().build()?;
 //! let works = client.works(WorksQuery::new("machine learning")
 //!     .sort(Sort::Score)
-//!     .into_combined_query::<Members>("member_id"))?;
+//!     .into_combined_query::<Members>("member_id")).await?;
 //! # Ok(())
 //! # }
 //! ```
@@ -182,12 +182,16 @@
 //!
 //! Iterate over all `Works` linked to search term `Machine Learning`
 //!
-//! ```edition2018
-//! use crossref::{Crossref, WorksQuery, Work};
-//! # fn run() -> Result<(), crossref::Error> {
+//! ```no_run
+//! use crossref_rs::{AsyncIterator, Crossref, WorksQuery, Work};
+//! # async fn run() -> Result<(), crossref_rs::Error> {
 //! let client = Crossref::builder().build()?;
 //!
-//! let all_works: Vec<Work> = client.deep_page(WorksQuery::new("Machine Learning")).flat_map(|x|x.items).collect();
+//! let mut pages = client.deep_page(WorksQuery::new("Machine Learning"));
+//! let mut all_works: Vec<Work> = Vec::new();
+//! while let Some(page) = pages.next().await {
+//!     all_works.extend(page.items);
+//! }
 //!
 //! # Ok(())
 //! # }
@@ -195,12 +199,16 @@
 //!
 //! Which can be simplified to
 //!
-//! ```edition2018
-//! use crossref::{Crossref, WorksQuery, Work};
-//! # fn run() -> Result<(), crossref::Error> {
+//! ```no_run
+//! use crossref_rs::{AsyncIterator, Crossref, WorksQuery, Work};
+//! # async fn run() -> Result<(), crossref_rs::Error> {
 //! let client = Crossref::builder().build()?;
 //!
-//! let all_works: Vec<Work> = client.deep_page("Machine Learning").into_work_iter().collect();
+//! let mut works = client.deep_page("Machine Learning").into_work_iter();
+//! let mut all_works: Vec<Work> = Vec::new();
+//! while let Some(work) = works.next().await {
+//!     all_works.push(work);
+//! }
 //!
 //! # Ok(())
 //! # }
@@ -212,12 +220,16 @@
 //! Iterate over all the pages (`WorkList`) of the funder with id `funder id` by using a combined query.
 //! A single `WorkList` usually holds 20 `Work` items.
 //!
-//! ```edition2018
-//! use crossref::{Crossref, Funders, WorksQuery, Work, WorkList};
-//! # fn run() -> Result<(), crossref::Error> {
+//! ```no_run
+//! use crossref_rs::{AsyncIterator, Crossref, Funders, WorksQuery, Work, WorkList};
+//! # async fn run() -> Result<(), crossref_rs::Error> {
 //! let client = Crossref::builder().build()?;
 //!
-//! let all_funder_work_list: Vec<WorkList> = client.deep_page(WorksQuery::default().into_combined_query::<Funders>("funder id")).collect();
+//! let mut pages = client.deep_page(WorksQuery::default().into_combined_query::<Funders>("funder id"));
+//! let mut all_funder_work_list: Vec<WorkList> = Vec::new();
+//! while let Some(page) = pages.next().await {
+//!     all_funder_work_list.push(page);
+//! }
 //!
 //! # Ok(())
 //! # }
@@ -226,23 +238,27 @@
 //!
 //! Iterate over all `Work` items of a specfic funder directly.
 //!
-//! ```edition2018
-//! use crossref::{Crossref, Funders, WorksQuery, Work, WorkList};
-//! # fn run() -> Result<(), crossref::Error> {
+//! ```no_run
+//! use crossref_rs::{AsyncIterator, Crossref, Funders, WorksQuery, Work, WorkList};
+//! # async fn run() -> Result<(), crossref_rs::Error> {
 //! let client = Crossref::builder().build()?;
 //!
-//! let all_works: Vec<Work> = client.deep_page(WorksQuery::default()
+//! let mut works = client.deep_page(WorksQuery::default()
 //!         .into_combined_query::<Funders>("funder id"))
-//!         .into_work_iter()
-//!         .collect();
+//!         .into_work_iter();
+//! let mut all_works: Vec<Work> = Vec::new();
+//! while let Some(work) = works.next().await {
+//!     all_works.push(work);
+//! }
 //!
 //! # Ok(())
 //! # }
 //! ```
 
-#![deny(warnings)]
-//#![deny(missing_docs)]
-#![allow(unused)]
+// TODO: 118 public items still lack doc comments; re-enable once documented.
+// #![warn(missing_docs)]
+
+
 
 mod error;
 /// provides types to construct a specific query
@@ -265,8 +281,12 @@ pub use self::query::works::{
 };
 
 #[doc(inline)]
-pub use self::query::{Component, CrossrefQuery, CrossrefRoute, Order, Sort};
-pub use self::query::{Funders, Journals, Members, Prefixes, Type, Types};
+pub use self::query::{Component, CrossrefQuery, CrossrefRoute, Order, ResultControl, Sort};
+pub use self::query::facet::{Facet, FacetCount};
+pub use self::query::journals::JournalResultControl;
+pub use self::query::{
+    Funders, FundersQuery, Journals, Members, MembersQuery, Prefixes, Type, Types,
+};
 pub use self::response::{
     CrossrefType, Funder, FunderList, Journal, JournalList, Member, MemberList, TypeList, Work,
     WorkAgency, WorkList,
@@ -274,30 +294,28 @@ pub use self::response::{
 
 pub(crate) use self::response::{Message, Response};
 
-use crate::error::ErrorKind;
-use crate::query::{FundersQuery, MembersQuery, ResourceComponent};
+/// The async iterator trait implemented by [`WorkListIterator`].
+///
+/// Re-exported so callers can drive deep paging without depending on
+/// `async-iterator` directly.
+pub use async_iterator::Iterator as AsyncIterator;
+
 use crate::response::{MessageType, Prefix};
-use async_iterator::Iterator;
-use query::journals::JournalResultControl;
-use reqwest::{self, Client};
-use std::default;
-use std::iter::FlatMap;
-use std::rc::Rc;
-use std::sync::Arc;
+use reqwest::Client;
 
 macro_rules! get_item {
     ($ident:ident, $value:expr, $got:expr) => {
         if let Some(msg) = $value {
             match msg {
                 Message::$ident(item) => Ok(item),
-                _ => Err(ErrorKind::UnexpectedItem {
+                _ => Err(Error::UnexpectedItem {
                     expected: MessageType::$ident,
                     got: $got,
                 }
                 .into()),
             }
         } else {
-            Err(ErrorKind::MissingMessage {
+            Err(Error::MissingMessage {
                 expected: MessageType::$ident,
             }
             .into())
@@ -345,22 +363,25 @@ impl Crossref {
     ///
     /// # Errors
     ///
-    /// If it was a bad url, the server will return `Resource not found` a `ResourceNotFound` error will be returned in this case
-    /// Also fails if the json response body could be parsed into `Response`
+    /// If crossref could not resolve the route, a `ResourceNotFound` error is returned.
+    /// Also fails if the json response body could not be parsed into `Response`.
     /// Fails if there was an error in reqwest executing the request [::reqwest::RequestBuilder::send]
     async fn get_response<T: CrossrefQuery>(&self, query: &T) -> Result<Response> {
-        let span = tracing::info_span!("crossref");
-        let _guard = span.enter();
-        let q = query.to_url(&self.base_url)?;
-        println!("url: {}", q);
+        let url = query.to_url(&self.base_url)?;
+        tracing::debug!(%url, "crossref request");
 
-        let res: std::result::Result<serde_json::Value, reqwest::Error> =
-            self.client.get(&q).send().await?.json().await;
+        let response = self.client.get(&url).send().await?;
 
-        match res {
-            Ok(json) => Ok(Response::try_from(json)?),
-            Err(e) => Err(ErrorKind::ReqWest { reqwest: e }.into()),
+        // crossref answers an unresolvable route with a plain-text body, which
+        // would otherwise surface as an opaque deserialization failure
+        if response.status() == reqwest::StatusCode::NOT_FOUND {
+            return Err(Error::ResourceNotFound {
+                resource: Box::new(query.clone().resource_component()),
+            });
         }
+
+        let json: serde_json::Value = response.error_for_status()?.json().await?;
+        Response::try_from(json)
     }
 
     //fn get_response_blocking<T: CrossrefQuery>(&self, query: &T) -> Result<Response> {
@@ -370,7 +391,7 @@ impl Crossref {
     //        .send()?
     //        .text()?;
     //    if resp.starts_with("Resource not found") {
-    //        Err(ErrorKind::ResourceNotFound {
+    //        Err(Error::ResourceNotFound {
     //            resource: Box::new(query.clone().resource_component()),
     //        }
     //        .into())
@@ -381,22 +402,22 @@ impl Crossref {
 
     /// Return the `Work` items that match a certain query.
     ///
-    /// To search only by query terms use the convenience query method [Crossref::query_works]
+    /// To search only by query terms use the convenience query method [`Crossref::works`]
     ///
     /// # Example
     ///
-    /// ```edition2018
-    /// use crossref::{Crossref, WorksQuery, WorksFilter, FieldQuery};
-    /// # fn run() -> Result<(), crossref::Error> {
+    /// ```no_run
+    /// use crossref_rs::{Crossref, WorksQuery, WorksFilter, FieldQuery};
+    /// # async fn run() -> Result<(), crossref_rs::Error> {
     /// let client = Crossref::builder().build()?;
     ///
     /// let query = WorksQuery::new("Machine Learning")
     ///     .filter(WorksFilter::HasOrcid)
-    ///     .order(crossref::Order::Asc)
+    ///     .order(crossref_rs::Order::Asc)
     ///     .field_query(FieldQuery::author("Some Author"))
-    ///     .sort(crossref::Sort::Score);
+    ///     .sort(crossref_rs::Sort::Score);
     ///
-    /// let works = client.works(query)?;
+    /// let works = client.works(query).await?;
     ///
     /// # Ok(())
     /// # }
@@ -434,12 +455,16 @@ impl Crossref {
     ///
     /// Iterate over all `Works` linked to search term `Machine Learning`
     ///
-    /// ```edition2018
-    /// use crossref::{Crossref, WorksQuery, Work};
-    /// # fn run() -> Result<(), crossref::Error> {
+    /// ```no_run
+    /// use crossref_rs::{AsyncIterator, Crossref, WorksQuery, Work};
+    /// # async fn run() -> Result<(), crossref_rs::Error> {
     /// let client = Crossref::builder().build()?;
     ///
-    /// let all_works: Vec<Work> = client.deep_page(WorksQuery::new("Machine Learning")).flat_map(|x|x.items).collect();
+    /// let mut pages = client.deep_page(WorksQuery::new("Machine Learning"));
+    /// let mut all_works: Vec<Work> = Vec::new();
+    /// while let Some(page) = pages.next().await {
+    ///     all_works.extend(page.items);
+    /// }
     ///
     /// # Ok(())
     /// # }
@@ -450,12 +475,16 @@ impl Crossref {
     /// Iterate over all the pages (`WorkList`) of the funder with id `funder id` by using a combined query.
     /// A single `WorkList` usually holds 20 `Work` items.
     ///
-    /// ```edition2018
-    /// use crossref::{Crossref, Funders, WorksQuery, Work, WorkList};
-    /// # fn run() -> Result<(), crossref::Error> {
+    /// ```no_run
+    /// use crossref_rs::{AsyncIterator, Crossref, Funders, WorksQuery, Work, WorkList};
+    /// # async fn run() -> Result<(), crossref_rs::Error> {
     /// let client = Crossref::builder().build()?;
     ///
-    /// let all_funder_work_list: Vec<WorkList> = client.deep_page(WorksQuery::default().into_combined_query::<Funders>("funder id")).collect();
+    /// let mut pages = client.deep_page(WorksQuery::default().into_combined_query::<Funders>("funder id"));
+    /// let mut all_funder_work_list: Vec<WorkList> = Vec::new();
+    /// while let Some(page) = pages.next().await {
+    ///     all_funder_work_list.push(page);
+    /// }
     ///
     /// # Ok(())
     /// # }
@@ -464,15 +493,18 @@ impl Crossref {
     ///
     /// Iterate over all `Work` items of a specfic funder directly.
     ///
-    /// ```edition2018
-    /// use crossref::{Crossref, Funders, WorksQuery, Work, WorkList};
-    /// # fn run() -> Result<(), crossref::Error> {
+    /// ```no_run
+    /// use crossref_rs::{AsyncIterator, Crossref, Funders, WorksQuery, Work, WorkList};
+    /// # async fn run() -> Result<(), crossref_rs::Error> {
     /// let client = Crossref::builder().build()?;
     ///
-    /// let all_works: Vec<Work> = client.deep_page(WorksQuery::default()
+    /// let mut works = client.deep_page(WorksQuery::default()
     ///         .into_combined_query::<Funders>("funder id"))
-    ///         .into_work_iter()
-    ///         .collect();
+    ///         .into_work_iter();
+    /// let mut all_works: Vec<Work> = Vec::new();
+    /// while let Some(work) = works.next().await {
+    ///     all_works.push(work);
+    /// }
     ///
     /// # Ok(())
     /// # }
@@ -482,33 +514,28 @@ impl Crossref {
     ///
     /// Alternatively deep page without an iterator by handling the cursor directly
     ///
-    /// ```edition2018
-    /// use crossref::{Crossref, WorksQuery, WorksFilter};
-    /// # fn run() -> Result<(), crossref::Error> {
+    /// ```no_run
+    /// use crossref_rs::{Crossref, WorksQuery, WorksFilter};
+    /// # async fn run() -> Result<(), crossref_rs::Error> {
     /// let client = Crossref::builder().build()?;
     ///
     /// // request a next-cursor first
     /// let query = WorksQuery::new("Machine Learning")
     ///     .new_cursor();
     ///
-    /// let works = client.works(query.clone())?;
+    /// let works = client.works(query.clone()).await?;
     ///
     /// // this continues from where this first response stopped
     /// // if no more work items are available then a empty list will be returned
     /// let deep_works = client.works(
     ///     query.next_cursor(&works.next_cursor.unwrap())
-    /// )?;
+    /// ).await?;
     /// # Ok(())
     /// # }
     /// ```
     ///
-    pub fn deep_page<T: Into<WorkListQuery>>(&self, query: T) -> WorkListIterator {
-        WorkListIterator {
-            query: query.into(),
-            client: self,
-            index: 0,
-            finish_next_iteration: false,
-        }
+    pub fn deep_page<T: Into<WorkListQuery>>(&self, query: T) -> WorkListIterator<'_> {
+        WorkListIterator::new(query.into(), self)
     }
 
     /// Return the `Agency` that registers the `Work` identified by  the `doi`.
@@ -573,10 +600,10 @@ impl Crossref {
     ) -> Result<JournalList> {
         if let Some(rc) = result_control {
             let resp = self.get_response(&Journals::Query(query, Some(rc))).await?;
-            return get_item!(JournalList, resp.message, resp.message_type);
+            get_item!(JournalList, resp.message, resp.message_type)
         } else {
             let resp = self.get_response(&Journals::Query(query, None)).await?;
-            return get_item!(JournalList, resp.message, resp.message_type);
+            get_item!(JournalList, resp.message, resp.message_type)
         }
     }
 
@@ -598,12 +625,12 @@ impl Crossref {
     ///
     /// # Example
     ///
-    /// ```edition2018
-    /// use crossref::Crossref;
-    /// # fn run() -> Result<(), crossref::Error> {
+    /// ```no_run
+    /// use crossref_rs::Crossref;
+    /// # async fn run() -> Result<(), crossref_rs::Error> {
     /// # let client = Crossref::builder().build()?;
     /// // this will return 10 random dois from the crossref api
-    /// let random_dois = client.random_dois(10)?;
+    /// let random_dois = client.random_dois(10).await?;
     /// # Ok(())
     /// # }
     /// ```
@@ -618,9 +645,9 @@ impl Crossref {
 ///
 /// # Example
 ///
-/// ```edition2018
-/// use crossref::Crossref;
-/// # fn run() -> Result<(), crossref::Error> {
+/// ```no_run
+/// use crossref_rs::Crossref;
+/// # async fn run() -> Result<(), crossref_rs::Error> {
 ///
 /// let client = Crossref::builder()
 ///     .polite("polite@example.com")
@@ -640,7 +667,7 @@ pub struct CrossrefBuilder {
     /// the token for the Crossref Plus service will be included as `Authorization` header
     /// This token will ensure that said requests get directed to a pool of machines that are reserved for "Plus" SLA users.
     plus_token: Option<String>,
-    /// use a different base url than `Crossref::BASE_URL` https://api.crossref.org
+    /// use a different base url than `Crossref::BASE_URL` <https://api.crossref.org>
     base_url: Option<String>,
 }
 
@@ -652,10 +679,22 @@ impl CrossrefBuilder {
         CrossrefBuilder::default()
     }
 
-    /// be polite and set your email as `User-Agent`
-    /// will get you in the polite pool of crossref
+    /// Be polite: identify yourself by email and get routed to crossref's
+    /// [polite pool](https://api.crossref.org/swagger-ui/index.html#/Etiquette).
+    ///
+    /// Sends a `User-Agent` in the shape crossref asks for, e.g.
+    /// `crossref-rs/0.2.0 (mailto:you@example.com)`. Anonymous requests share a
+    /// rate-limited pool and are the usual cause of `429` responses.
+    ///
+    /// Use [`CrossrefBuilder::user_agent`] instead if you want to send your own
+    /// application's name; include `mailto:<email>` in it to stay in the pool.
     pub fn polite(mut self, email: &str) -> Self {
-        self.user_agent = Some(format!("mailto:{}", email));
+        self.user_agent = Some(format!(
+            "{}/{} (mailto:{})",
+            env!("CARGO_PKG_NAME"),
+            env!("CARGO_PKG_VERSION"),
+            email
+        ));
         self
     }
 
@@ -681,7 +720,7 @@ impl CrossrefBuilder {
         if let Some(agent) = &self.user_agent {
             headers.insert(
                 header::USER_AGENT,
-                header::HeaderValue::from_str(agent).map_err(|_| ErrorKind::Config {
+                header::HeaderValue::from_str(agent).map_err(|_| Error::Config {
                     msg: format!("failed to create User Agent header for `{}`", agent),
                 })?,
             );
@@ -689,7 +728,7 @@ impl CrossrefBuilder {
         if let Some(token) = &self.plus_token {
             headers.insert(
                 header::AUTHORIZATION,
-                header::HeaderValue::from_str(token).map_err(|_| ErrorKind::Config {
+                header::HeaderValue::from_str(token).map_err(|_| Error::Config {
                     msg: format!("failed to create AUTHORIZATION header for `{}`", token),
                 })?,
             );
@@ -697,14 +736,14 @@ impl CrossrefBuilder {
         let client = reqwest::Client::builder()
             .default_headers(headers.clone())
             .build()
-            .map_err(|_| ErrorKind::Config {
+            .map_err(|_| Error::Config {
                 msg: "failed to initialize TLS backend".to_string(),
             })?;
 
         //let blocking_client = reqwest::blocking::Client::builder()
         //    .default_headers(headers)
         //    .build()
-        //    .map_err(|_| ErrorKind::Config {
+        //    .map_err(|_| Error::Config {
         //        msg: "failed to initialize TLS backend".to_string(),
         //    })?;
 
@@ -723,31 +762,54 @@ pub struct WorkListIterator<'a> {
     query: WorkListQuery,
     /// performs each request
     client: &'a Crossref,
-    /// stores how many results already retrieved
-    index: usize,
     /// whether the iterator should finish next iteration
     finish_next_iteration: bool,
 }
 
 impl<'a> WorkListIterator<'a> {
-    pub fn new<'b: 'a>(query: WorkListQuery, client: &'b Crossref) -> Self {
+    /// Create an iterator that deep pages `query` through `client`.
+    pub fn new(query: WorkListQuery, client: &'a Crossref) -> Self {
         Self {
             query,
             client,
-            index: 0,
             finish_next_iteration: false,
+        }
+    }
+
+    /// Flatten the paged results into an iterator over individual [`Work`] items.
+    ///
+    /// Pages are fetched lazily, one request at a time, as the buffer drains.
+    pub fn into_work_iter(self) -> WorkIterator<'a> {
+        WorkIterator {
+            pages: self,
+            buffer: Vec::new().into_iter(),
         }
     }
 }
 
-//impl<'a> WorkListIterator<'a> {
-//    /// convenience method to create a `WorkIterator`
-//    pub fn into_work_iter(self) -> impl async_iterator::Iterator<Item = WorkList> + 'a {
-//        self.client.get_response(&self.query)
-//    }
-//}
+/// Yields individual [`Work`] items across the deep paged [`WorkList`] pages.
+///
+/// Created by [`WorkListIterator::into_work_iter`].
+pub struct WorkIterator<'a> {
+    pages: WorkListIterator<'a>,
+    buffer: std::vec::IntoIter<Work>,
+}
 
-impl<'a> async_iterator::Iterator for WorkListIterator<'a> {
+impl async_iterator::Iterator for WorkIterator<'_> {
+    type Item = Work;
+
+    async fn next(&mut self) -> Option<Self::Item> {
+        loop {
+            if let Some(work) = self.buffer.next() {
+                return Some(work);
+            }
+            // `WorkListIterator` stops on the first empty page, so this terminates
+            self.buffer = self.pages.next().await?.items.into_iter();
+        }
+    }
+}
+
+impl async_iterator::Iterator for WorkListIterator<'_> {
     type Item = WorkList;
 
     async fn next(&mut self) -> Option<Self::Item> {

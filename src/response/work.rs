@@ -1,13 +1,10 @@
 // see https://github.com/Crossref/rest-api-doc/blob/master/api_format.md
 
-use core::hash;
 use std::collections::HashMap;
 
-use crate::error::{ErrorKind, Result};
+use crate::error::Error;
 use crate::response::{FacetMap, QueryResponse};
-use crate::{Crossref, WorkListQuery, WorksQuery};
 use chrono::{Datelike, NaiveDate};
-use failure::Error;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -37,18 +34,18 @@ pub struct WorkList {
 }
 
 impl TryFrom<serde_json::Value> for WorkList {
-    type Error = ErrorKind;
+    type Error = Error;
 
     fn try_from(value: serde_json::Value) -> std::result::Result<Self, Self::Error> {
       match value {
         Value::Object(map) => {
           let facets: HashMap<String, FacetItem> = map
           .get("facets")
-          .ok_or(ErrorKind::MissingField {
+          .ok_or(Error::MissingField {
               msg: "facets".to_string(),
           })?
             .as_object()
-            .ok_or(ErrorKind::InvalidTypeName {
+            .ok_or(Error::InvalidTypeName {
                 name: "facets".to_string(),
             })?
             .iter()
@@ -63,12 +60,12 @@ impl TryFrom<serde_json::Value> for WorkList {
 
           let total_results = map
               .get("total-results")
-              .ok_or(ErrorKind::MissingField {
+              .ok_or(Error::MissingField {
                   msg: "total-results".to_string(),
               })?
                 .as_u64()
                 .map(|v| v as usize)
-                .ok_or(ErrorKind::InvalidTypeName {
+                .ok_or(Error::InvalidTypeName {
                     name: "total-results".to_string(),
                 })?;
 
@@ -85,11 +82,11 @@ impl TryFrom<serde_json::Value> for WorkList {
 
           let items: Vec<Work> = map
               .get("items")
-                .ok_or(ErrorKind::MissingField {
+                .ok_or(Error::MissingField {
                     msg: "items".to_string(),
                 })?
                 .as_array() 
-                .ok_or(ErrorKind::InvalidTypeName {
+                .ok_or(Error::InvalidTypeName {
                     name: "items".to_string(),
                 })?
                 .iter()
@@ -110,7 +107,7 @@ impl TryFrom<serde_json::Value> for WorkList {
               next_cursor,
           })
         }
-        _ => Err(ErrorKind::InvalidMessageType {
+        _ => Err(Error::InvalidMessageType {
             name: value.to_string(),
         })?,
     }
@@ -232,29 +229,29 @@ pub struct Work {
 }
 
 impl TryFrom<serde_json::Value> for Work {
-    type Error = ErrorKind;
+    type Error = Error;
 
     fn try_from(value: serde_json::Value) -> std::result::Result<Self, Self::Error> {
         match value {
             Value::Object(map) => {
                 let publisher = map
                     .get("publisher")
-                    .ok_or(ErrorKind::MissingField {
+                    .ok_or(Error::MissingField {
                         msg: "publisher".to_string(),
                     })?
                     .as_str()
-                    .ok_or(ErrorKind::InvalidTypeName {
+                    .ok_or(Error::InvalidTypeName {
                         name: "publisher".to_string(),
                     })?
                     .to_string();
 
                 let title: Vec<String> = map
                     .get("title")
-                    .ok_or(ErrorKind::MissingField {
+                    .ok_or(Error::MissingField {
                         msg: "title".to_string(),
                     })?
                     .as_array()
-                    .ok_or(ErrorKind::InvalidTypeName {
+                    .ok_or(Error::InvalidTypeName {
                         name: "title".to_string(),
                     })?
                     .iter()
@@ -308,11 +305,11 @@ impl TryFrom<serde_json::Value> for Work {
 
                 let doi = map
                     .get("DOI")
-                    .ok_or(ErrorKind::MissingField {
+                    .ok_or(Error::MissingField {
                         msg: "DOI".to_string(),
                     })?
                     .as_str()
-                    .ok_or(ErrorKind::InvalidTypeName {
+                    .ok_or(Error::InvalidTypeName {
                         name: "DOI".to_string(),
                     })?
                     .to_string();
@@ -324,22 +321,22 @@ impl TryFrom<serde_json::Value> for Work {
 
                 let member = map
                     .get("member")
-                    .ok_or(ErrorKind::MissingField {
+                    .ok_or(Error::MissingField {
                         msg: "member".to_string(),
                     })?
                     .as_str()
-                    .ok_or(ErrorKind::InvalidTypeName {
+                    .ok_or(Error::InvalidTypeName {
                         name: "member".to_string(),
                     })?
                     .to_string();
 
                 let type_ = map
                     .get("type")
-                    .ok_or(ErrorKind::MissingField {
+                    .ok_or(Error::MissingField {
                         msg: "type".to_string(),
                     })?
                     .as_str()
-                    .ok_or(ErrorKind::InvalidTypeName {
+                    .ok_or(Error::InvalidTypeName {
                         name: "type".to_string(),
                     })?
                     .to_string();
@@ -347,12 +344,12 @@ impl TryFrom<serde_json::Value> for Work {
                 let created = map
                     .get("created")
                     .ok_or(
-                        ErrorKind::MissingField {
+                        Error::MissingField {
                             msg: "created".to_string(),
                         },
                     )?
                     .as_object()
-                    .ok_or(ErrorKind::InvalidTypeName {
+                    .ok_or(Error::InvalidTypeName {
                         name: "created".to_string(),
                     })
                     .map(|v| Date::try_from(Value::Object(v.clone())).unwrap())?;
@@ -371,11 +368,11 @@ impl TryFrom<serde_json::Value> for Work {
 
                 let indexed = map
                     .get("indexed")
-                    .ok_or(ErrorKind::MissingField {
+                    .ok_or(Error::MissingField {
                         msg: "indexed".to_string(),
                     })?
                     .as_object()
-                    .ok_or(ErrorKind::InvalidTypeName {
+                    .ok_or(Error::InvalidTypeName {
                         name: "indexed".to_string(),
                     })
                     .map(|v| Date::try_from(Value::Object(v.clone())).unwrap())?;
@@ -628,43 +625,35 @@ impl TryFrom<serde_json::Value> for Work {
                     review,
                 })
             }
-            _ => Err(ErrorKind::InvalidMessageType {
+            _ => Err(Error::InvalidMessageType {
                 name: value.to_string(),
             })?,
         }
     }
 }
 
-// AuthorYear (e.g. Smith2019) or Author&AuthorYear (e.g. Smith&Jones2019) or AuthorEtAlYear (e.g. SmithEtAl2019)
-fn to_citekey(authors: Vec<Contributor>, year: Option<Date>) -> Option<String> {
-    if let Some(authors) = {
-        if authors.len() == 0 {
-            return None;
-        } else if authors.len() == 1 {
-            authors[0].family.clone()
-        } else if authors.len() == 2 {
-            Some(format!(
-                "{}&{}",
-                authors[0].family.clone().unwrap_or("".to_string()),
-                authors[1].family.clone().unwrap_or("".to_string())
-            ))
-        } else {
-            Some(format!(
-                "{}EtAl",
-                authors[0].family.clone().unwrap_or("".to_string())
-            ))
-        }
-    } {
-        let Some(date) = year
-            .and_then(|d| d.date_parts.as_date())
-            .and_then(|d| Some(d.year()))
-        else {
-            return None;
+impl Work {
+    /// A short citation key for this work, in the common `AuthorYear` style.
+    ///
+    /// Built from the family names of the authors and the issued year:
+    /// `Smith2019` for a single author, `Smith&Jones2019` for two, and
+    /// `SmithEtAl2019` for three or more.
+    ///
+    /// Returns [`None`] if the work carries no author with a family name, or
+    /// no issued date to take a year from.
+    pub fn citekey(&self) -> Option<String> {
+        let authors = self.author.as_deref()?;
+        let family = |c: &Contributor| c.family.clone().unwrap_or_default();
+
+        let names = match authors {
+            [] => return None,
+            [single] => single.family.clone()?,
+            [first, second] => format!("{}&{}", family(first), family(second)),
+            [first, ..] => format!("{}EtAl", family(first)),
         };
 
-        Some(format!("{}{}", authors, date))
-    } else {
-        return None;
+        let year = self.issued.as_ref()?.as_date_field()?.year();
+        Some(format!("{}{}", names, year))
     }
 }
 
@@ -721,18 +710,18 @@ pub struct FundingBody {
 }
 
 impl TryFrom<serde_json::Value> for FundingBody {
-    type Error = ErrorKind;
+    type Error = Error;
 
     fn try_from(value: serde_json::Value) -> std::result::Result<Self, Self::Error> {
         match value {
             Value::Object(map) => {
                 let name = map
                     .get("name")
-                    .ok_or(ErrorKind::MissingField {
+                    .ok_or(Error::MissingField {
                         msg: "name".to_string(),
                     })?
                     .as_str()
-                    .ok_or(ErrorKind::InvalidTypeName {
+                    .ok_or(Error::InvalidTypeName {
                         name: "name".to_string(),
                     })?
                     .to_string();
@@ -759,7 +748,7 @@ impl TryFrom<serde_json::Value> for FundingBody {
                     doi_asserted_by,
                 })
             }
-            _ => Err(ErrorKind::InvalidMessageType {
+            _ => Err(Error::InvalidMessageType {
                 name: value.to_string(),
             })?,
         }
@@ -780,29 +769,29 @@ pub struct ClinicalTrialNumber {
 }
 
 impl TryFrom<serde_json::Value> for ClinicalTrialNumber {
-    type Error = ErrorKind;
+    type Error = Error;
 
     fn try_from(value: serde_json::Value) -> std::result::Result<Self, Self::Error> {
         match value {
             Value::Object(map) => {
                 let clinical_trial_number = map
                     .get("clinical-trial-number")
-                    .ok_or(ErrorKind::MissingField {
+                    .ok_or(Error::MissingField {
                         msg: "clinical-trial-number".to_string(),
                     })?
                     .as_str()
-                    .ok_or(ErrorKind::InvalidTypeName {
+                    .ok_or(Error::InvalidTypeName {
                         name: "clinical-trial-number".to_string(),
                     })?
                     .to_string();
 
                 let registry = map
                     .get("registry")
-                    .ok_or(ErrorKind::MissingField {
+                    .ok_or(Error::MissingField {
                         msg: "registry".to_string(),
                     })?
                     .as_str()
-                    .ok_or(ErrorKind::InvalidTypeName {
+                    .ok_or(Error::InvalidTypeName {
                         name: "registry".to_string(),
                     })?
                     .to_string();
@@ -818,7 +807,7 @@ impl TryFrom<serde_json::Value> for ClinicalTrialNumber {
                     type_,
                 })
             }
-            _ => Err(ErrorKind::InvalidMessageType {
+            _ => Err(Error::InvalidMessageType {
                 name: value.to_string(),
             })?,
         }
@@ -844,7 +833,7 @@ pub struct Contributor {
 }
 
 impl TryFrom<serde_json::Value> for Contributor {
-    type Error = ErrorKind;
+    type Error = Error;
 
     fn try_from(value: serde_json::Value) -> std::result::Result<Self, Self::Error> {
         match value {
@@ -884,11 +873,10 @@ impl TryFrom<serde_json::Value> for Contributor {
 
                 let authenticated_orcid = map
                     .get("authenticated-orcid")
-                    .and_then(|v| v.as_bool())
-                    .map(|v| v);
+                    .and_then(|v| v.as_bool());
 
                 let affiliation = map.get("affiliation").and_then(|v| v.as_array()).ok_or(
-                    ErrorKind::MissingField {
+                    Error::MissingField {
                         msg: "affiliation".to_string(),
                     },
                 ).map(|v| {
@@ -901,7 +889,7 @@ impl TryFrom<serde_json::Value> for Contributor {
                     .get("sequence")
                     .and_then(|v| v.as_str())
                     .map(|v| v.to_string())
-                    .ok_or(ErrorKind::MissingField {
+                    .ok_or(Error::MissingField {
                         msg: "sequence".to_string(),
                     })?;
 
@@ -917,7 +905,7 @@ impl TryFrom<serde_json::Value> for Contributor {
                     sequence
                 })
             }
-            _ => Err(ErrorKind::InvalidMessageType {
+            _ => Err(Error::InvalidMessageType {
                 name: value.to_string(),
             })?,
         }
@@ -932,25 +920,25 @@ pub struct Affiliation {
 }
 
 impl TryFrom<serde_json::Value> for Affiliation {
-    type Error = ErrorKind;
+    type Error = Error;
 
     fn try_from(value: serde_json::Value) -> std::result::Result<Self, Self::Error> {
         match value {
             Value::Object(map) => {
                 let name = map
                     .get("name")
-                    .ok_or(ErrorKind::MissingField {
+                    .ok_or(Error::MissingField {
                         msg: "name".to_string(),
                     })?
                     .as_str()
-                    .ok_or(ErrorKind::InvalidTypeName {
+                    .ok_or(Error::InvalidTypeName {
                         name: "name".to_string(),
                     })?
                     .to_string();
 
-                Ok(Affiliation { name: name })
+                Ok(Affiliation { name })
             }
-            _ => Err(ErrorKind::InvalidMessageType {
+            _ => Err(Error::InvalidMessageType {
                 name: value.to_string(),
             })?,
         }
@@ -972,7 +960,7 @@ pub struct Date {
 }
 
 impl TryFrom<serde_json::Value> for Date {
-    type Error = ErrorKind;
+    type Error = Error;
 
     fn try_from(value: serde_json::Value) -> std::result::Result<Self, Self::Error> {
         match value {
@@ -997,7 +985,7 @@ impl TryFrom<serde_json::Value> for Date {
                     .get("timestamp")
                     .and_then(|v| v.as_u64())
                     .map(|v| v as usize)
-                    .ok_or(ErrorKind::MissingField {
+                    .ok_or(Error::MissingField {
                         msg: "timestamp".to_string(),
                     })?;
 
@@ -1005,7 +993,7 @@ impl TryFrom<serde_json::Value> for Date {
                     .get("date-time")
                     .and_then(|v| v.as_str())
                     .map(|v| v.to_string())
-                    .ok_or(ErrorKind::MissingField {
+                    .ok_or(Error::MissingField {
                         msg: "date-time".to_string(),
                     })?;
 
@@ -1015,7 +1003,7 @@ impl TryFrom<serde_json::Value> for Date {
                     date_time,
                 })
             }
-            _ => Err(ErrorKind::InvalidMessageType {
+            _ => Err(Error::InvalidMessageType {
                 name: value.to_string(),
             })?,
         }
@@ -1028,18 +1016,29 @@ impl Date {
         self.date_parts.as_date()
     }
 
-    pub fn to_string(&self) -> String {
+}
+
+impl std::fmt::Display for Date {
+    /// Renders the date as `%Y-%m-%d`; ranges as `from-to` and multi dates as a
+    /// comma separated list. An unparsable date renders as the empty string.
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self.as_date_field() {
-            Some(DateField::Single(date)) => date.format("%Y-%m-%d").to_string(),
-            Some(DateField::Range { from, to }) => {
-                format!("{}-{}", from.format("%Y-%m-%d"), to.format("%Y-%m-%d"))
+            Some(DateField::Single(date)) => write!(f, "{}", date.format("%Y-%m-%d")),
+            Some(DateField::Range { from, to }) => write!(
+                f,
+                "{}-{}",
+                from.format("%Y-%m-%d"),
+                to.format("%Y-%m-%d")
+            ),
+            Some(DateField::Multi(dates)) => {
+                let joined = dates
+                    .iter()
+                    .map(|date| date.format("%Y-%m-%d").to_string())
+                    .collect::<Vec<_>>()
+                    .join(",");
+                f.write_str(&joined)
             }
-            Some(DateField::Multi(dates)) => dates
-                .iter()
-                .map(|date| date.format("%Y-%m-%d").to_string())
-                .collect::<Vec<_>>()
-                .join(","),
-            None => "".to_string(),
+            None => Ok(()),
         }
     }
 }
@@ -1055,7 +1054,7 @@ pub struct PartialDate {
 }
 
 impl TryFrom<serde_json::Value> for PartialDate {
-    type Error = ErrorKind;
+    type Error = Error;
 
     fn try_from(value: serde_json::Value) -> std::result::Result<Self, Self::Error> {
         match value {
@@ -1080,7 +1079,7 @@ impl TryFrom<serde_json::Value> for PartialDate {
                     date_parts: date_parts.unwrap(),
                 })
             }
-            _ => Err(ErrorKind::InvalidMessageType {
+            _ => Err(Error::InvalidMessageType {
                 name: value.to_string(),
             })?,
         }
@@ -1114,7 +1113,7 @@ impl DateField {
     pub fn year(&self) -> i32 {
         match self {
             DateField::Single(date) => date.year(),
-            DateField::Range { from, to } => from.year(),
+            DateField::Range { from, to: _ } => from.year(),
             DateField::Multi(dates) => dates[0].year(),
         }
     }
@@ -1136,7 +1135,7 @@ pub struct Update {
 }
 
 impl TryFrom<serde_json::Value> for Update {
-    type Error = ErrorKind;
+    type Error = Error;
 
     fn try_from(value: serde_json::Value) -> std::result::Result<Self, Self::Error> {
         match value {
@@ -1150,7 +1149,7 @@ impl TryFrom<serde_json::Value> for Update {
                     .get("DOI")
                     .and_then(|v| v.as_str())
                     .map(|v| v.to_string())
-                    .ok_or(ErrorKind::MissingField {
+                    .ok_or(Error::MissingField {
                         msg: "DOI".to_string(),
                     })?;
 
@@ -1158,7 +1157,7 @@ impl TryFrom<serde_json::Value> for Update {
                     .get("type")
                     .and_then(|v| v.as_str())
                     .map(|v| v.to_string())
-                    .ok_or(ErrorKind::MissingField {
+                    .ok_or(Error::MissingField {
                         msg: "type".to_string(),
                     })?;
 
@@ -1174,7 +1173,7 @@ impl TryFrom<serde_json::Value> for Update {
                     label,
                 })
             }
-            _ => Err(ErrorKind::InvalidMessageType {
+            _ => Err(Error::InvalidMessageType {
                 name: value.to_string(),
             })?,
         }
@@ -1195,7 +1194,7 @@ pub struct Assertion {
 }
 
 impl TryFrom<serde_json::Value> for Assertion {
-    type Error = ErrorKind;
+    type Error = Error;
 
     fn try_from(value: serde_json::Value) -> std::result::Result<Self, Self::Error> {
         match value {
@@ -1204,7 +1203,7 @@ impl TryFrom<serde_json::Value> for Assertion {
                     .get("name")
                     .and_then(|v| v.as_str())
                     .map(|v| v.to_string())
-                    .ok_or(ErrorKind::MissingField {
+                    .ok_or(Error::MissingField {
                         msg: "name".to_string(),
                     })?;
 
@@ -1245,7 +1244,7 @@ impl TryFrom<serde_json::Value> for Assertion {
                     group,
                 })
             }
-            _ => Err(ErrorKind::InvalidMessageType {
+            _ => Err(Error::InvalidMessageType {
                 name: value.to_string(),
             })?,
         }
@@ -1265,7 +1264,7 @@ pub struct Issue {
 }
 
 impl TryFrom<serde_json::Value> for Issue {
-    type Error = ErrorKind;
+    type Error = Error;
 
     fn try_from(value: serde_json::Value) -> std::result::Result<Self, Self::Error> {
         match value {
@@ -1291,7 +1290,7 @@ impl TryFrom<serde_json::Value> for Issue {
                     issue,
                 })
             }
-            _ => Err(ErrorKind::InvalidMessageType {
+            _ => Err(Error::InvalidMessageType {
                 name: value.to_string(),
             })?,
         }
@@ -1306,7 +1305,7 @@ pub struct AssertionGroup {
 }
 
 impl TryFrom<serde_json::Value> for AssertionGroup {
-    type Error = ErrorKind;
+    type Error = Error;
 
     fn try_from(value: serde_json::Value) -> std::result::Result<Self, Self::Error> {
         match value {
@@ -1315,7 +1314,7 @@ impl TryFrom<serde_json::Value> for AssertionGroup {
                     .get("name")
                     .and_then(|v| v.as_str())
                     .map(|v| v.to_string())
-                    .ok_or(ErrorKind::MissingField {
+                    .ok_or(Error::MissingField {
                         msg: "name".to_string(),
                     })?;
 
@@ -1326,7 +1325,7 @@ impl TryFrom<serde_json::Value> for AssertionGroup {
 
                 Ok(AssertionGroup { name, label })
             }
-            _ => Err(ErrorKind::InvalidMessageType {
+            _ => Err(Error::InvalidMessageType {
                 name: value.to_string(),
             })?,
         }
@@ -1356,7 +1355,7 @@ pub struct License {
 }
 
 impl TryFrom<serde_json::Value> for License {
-    type Error = ErrorKind;
+    type Error = Error;
 
     fn try_from(value: serde_json::Value) -> std::result::Result<Self, Self::Error> {
         match value {
@@ -1365,7 +1364,7 @@ impl TryFrom<serde_json::Value> for License {
                     .get("content-version")
                     .and_then(|v| v.as_str())
                     .map(|v| v.to_string())
-                    .ok_or(ErrorKind::MissingField {
+                    .ok_or(Error::MissingField {
                         msg: "content-version".to_string(),
                     })?;
 
@@ -1373,7 +1372,7 @@ impl TryFrom<serde_json::Value> for License {
                     .get("delay-in-days")
                     .and_then(|v| v.as_i64())
                     .map(|v| v as i32)
-                    .ok_or(ErrorKind::MissingField {
+                    .ok_or(Error::MissingField {
                         msg: "delay-in-days".to_string(),
                     })?;
 
@@ -1381,7 +1380,7 @@ impl TryFrom<serde_json::Value> for License {
                     .get("start")
                     .and_then(|v| v.as_object())
                     .map(|v| PartialDate::try_from(Value::Object(v.clone())).unwrap())
-                    .ok_or(ErrorKind::MissingField {
+                    .ok_or(Error::MissingField {
                         msg: "start".to_string(),
                     })?;
 
@@ -1389,7 +1388,7 @@ impl TryFrom<serde_json::Value> for License {
                     .get("URL")
                     .and_then(|v| v.as_str())
                     .map(|v| v.to_string())
-                    .ok_or(ErrorKind::MissingField {
+                    .ok_or(Error::MissingField {
                         msg: "URL".to_string(),
                     })?;
 
@@ -1400,7 +1399,7 @@ impl TryFrom<serde_json::Value> for License {
                     url,
                 })
             }
-            _ => Err(ErrorKind::InvalidMessageType {
+            _ => Err(Error::InvalidMessageType {
                 name: value.to_string(),
             })?,
         }
@@ -1423,7 +1422,7 @@ pub struct ResourceLink {
 }
 
 impl TryFrom<serde_json::Value> for ResourceLink {
-    type Error = ErrorKind;
+    type Error = Error;
 
     fn try_from(value: serde_json::Value) -> std::result::Result<Self, Self::Error> {
         match value {
@@ -1432,7 +1431,7 @@ impl TryFrom<serde_json::Value> for ResourceLink {
                     .get("intended-application")
                     .and_then(|v| v.as_str())
                     .map(|v| v.to_string())
-                    .ok_or(ErrorKind::MissingField {
+                    .ok_or(Error::MissingField {
                         msg: "intended-application".to_string(),
                     })?;
 
@@ -1440,7 +1439,7 @@ impl TryFrom<serde_json::Value> for ResourceLink {
                     .get("content-version")
                     .and_then(|v| v.as_str())
                     .map(|v| v.to_string())
-                    .ok_or(ErrorKind::MissingField {
+                    .ok_or(Error::MissingField {
                         msg: "content-version".to_string(),
                     })?;
 
@@ -1448,7 +1447,7 @@ impl TryFrom<serde_json::Value> for ResourceLink {
                     .get("URL")
                     .and_then(|v| v.as_str())
                     .map(|v| v.to_string())
-                    .ok_or(ErrorKind::MissingField {
+                    .ok_or(Error::MissingField {
                         msg: "URL".to_string(),
                     })?;
 
@@ -1464,7 +1463,7 @@ impl TryFrom<serde_json::Value> for ResourceLink {
                     content_type,
                 })
             }
-            _ => Err(ErrorKind::InvalidMessageType {
+            _ => Err(Error::InvalidMessageType {
                 name: value.to_string(),
             })?,
         }
@@ -1504,7 +1503,7 @@ pub struct Reference {
 }
 
 impl TryFrom<serde_json::Value> for Reference {
-    type Error = ErrorKind;
+    type Error = Error;
 
     fn try_from(value: serde_json::Value) -> std::result::Result<Self, Self::Error> {
         match value {
@@ -1513,7 +1512,7 @@ impl TryFrom<serde_json::Value> for Reference {
                     .get("key")
                     .and_then(|v| v.as_str())
                     .map(|v| v.to_string())
-                    .ok_or(ErrorKind::MissingField {
+                    .ok_or(Error::MissingField {
                         msg: "key".to_string(),
                     })?;
 
@@ -1641,7 +1640,7 @@ impl TryFrom<serde_json::Value> for Reference {
                     isbn_type,
                 })
             }
-            _ => Err(ErrorKind::InvalidMessageType {
+            _ => Err(Error::InvalidMessageType {
                 name: value.to_string(),
             })?,
         }
@@ -1660,7 +1659,7 @@ pub struct ISSN {
 }
 
 impl TryFrom<serde_json::Value> for ISSN {
-    type Error = ErrorKind;
+    type Error = Error;
 
     fn try_from(value: serde_json::Value) -> std::result::Result<Self, Self::Error> {
         match value {
@@ -1669,7 +1668,7 @@ impl TryFrom<serde_json::Value> for ISSN {
                     .get("value")
                     .and_then(|v| v.as_str())
                     .map(|v| v.to_string())
-                    .ok_or(ErrorKind::MissingField {
+                    .ok_or(Error::MissingField {
                         msg: "value".to_string(),
                     })?;
 
@@ -1677,13 +1676,13 @@ impl TryFrom<serde_json::Value> for ISSN {
                     .get("type")
                     .and_then(|v| v.as_str())
                     .map(|v| v.to_string())
-                    .ok_or(ErrorKind::MissingField {
+                    .ok_or(Error::MissingField {
                         msg: "type".to_string(),
                     })?;
 
                 Ok(ISSN { value, type_ })
             }
-            _ => Err(ErrorKind::InvalidMessageType {
+            _ => Err(Error::InvalidMessageType {
                 name: value.to_string(),
             })?,
         }
@@ -1699,7 +1698,7 @@ pub struct ContentDomain {
 }
 
 impl TryFrom<serde_json::Value> for ContentDomain {
-    type Error = ErrorKind;
+    type Error = Error;
 
     fn try_from(value: serde_json::Value) -> std::result::Result<Self, Self::Error> {
         match value {
@@ -1712,8 +1711,7 @@ impl TryFrom<serde_json::Value> for ContentDomain {
                 let crossmark_restriction = map
                     .get("crossmark-restriction")
                     .and_then(|v| v.as_bool())
-                    .map(|v| v)
-                    .ok_or(ErrorKind::MissingField {
+                    .ok_or(Error::MissingField {
                         msg: "crossmark-restriction".to_string(),
                     })?;
 
@@ -1722,7 +1720,7 @@ impl TryFrom<serde_json::Value> for ContentDomain {
                     crossmark_restriction,
                 })
             }
-            _ => Err(ErrorKind::InvalidMessageType {
+            _ => Err(Error::InvalidMessageType {
                 name: value.to_string(),
             })?,
         }
@@ -1739,7 +1737,7 @@ pub struct Relation {
 }
 
 impl TryFrom<serde_json::Value> for Relation {
-    type Error = ErrorKind;
+    type Error = Error;
 
     fn try_from(value: serde_json::Value) -> std::result::Result<Self, Self::Error> {
         match value {
@@ -1765,7 +1763,7 @@ impl TryFrom<serde_json::Value> for Relation {
                     asserted_by,
                 })
             }
-            _ => Err(ErrorKind::InvalidMessageType {
+            _ => Err(Error::InvalidMessageType {
                 name: value.to_string(),
             })?,
         }
@@ -1936,6 +1934,6 @@ mod tests {
   }
 "##;
 
-        let work: Work = from_str(work_str).unwrap();
+        let _work: Work = from_str(work_str).unwrap();
     }
 }

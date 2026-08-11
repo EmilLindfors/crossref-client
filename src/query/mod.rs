@@ -1,20 +1,17 @@
-use crate::error::{Error, Result};
+use crate::error::Result;
 use crate::query::facet::FacetCount;
 pub use crate::query::funders::{Funders, FundersQuery};
 pub use crate::query::journals::Journals;
 pub use crate::query::members::{Members, MembersQuery};
 pub use crate::query::prefixes::Prefixes;
 pub use crate::query::types::{Type, Types};
-use crate::query::works::{Works, WorksFilter};
+use crate::query::works::Works;
 pub use crate::query::works::{WorksIdentQuery, WorksQuery};
-use chrono::NaiveDate;
 use core::fmt::Debug;
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
 use std::fmt;
 use std::str::FromStr;
-#[cfg(feature = "cli")]
-use structopt::StructOpt;
 
 /// Helper trait for unified interface
 pub trait CrossrefParams {
@@ -202,20 +199,11 @@ impl Visibility {
 }
 
 /// Determines how results should be sorted
-#[derive(Debug, PartialEq, Eq, Clone)]
-#[cfg_attr(feature = "cli", derive(StructOpt))]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum Order {
     /// list results in ascending order
-    #[cfg_attr(
-        feature = "cli",
-        structopt(name = "asc", about = "list results in ascending order")
-    )]
     Asc,
     /// list results in descending order
-    #[cfg_attr(
-        feature = "cli",
-        structopt(name = "desc", about = "list results in descending order")
-    )]
     Desc,
 }
 
@@ -229,7 +217,6 @@ impl Order {
     }
 }
 
-#[cfg(feature = "cli")]
 impl FromStr for Order {
     type Err = String;
 
@@ -243,93 +230,42 @@ impl FromStr for Order {
 }
 
 impl CrossrefQueryParam for Order {
-    fn param_key(&self) -> Cow<str> {
+    fn param_key(&self) -> Cow<'_, str> {
         Cow::Borrowed("order")
     }
 
-    fn param_value(&self) -> Option<Cow<str>> {
+    fn param_value(&self) -> Option<Cow<'_, str>> {
         Some(Cow::Borrowed(self.as_str()))
     }
 }
 
 /// Results from a list response can be sorted by applying the sort and order parameters.
-#[derive(Debug, Clone)]
-#[cfg_attr(feature = "cli", derive(StructOpt))]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum Sort {
     /// Sort by relevance score
-    #[cfg_attr(
-        feature = "cli",
-        structopt(name = "score", about = "Sort by the relevance score")
-    )]
     Score,
     /// Sort by date of most recent change to metadata. Currently the same as `Deposited`
-    #[cfg_attr(
-        feature = "cli",
-        structopt(
-            name = "updated",
-            about = "Sort by date of most recent change to metadata."
-        )
-    )]
     Updated,
     /// Sort by time of most recent deposit
-    #[cfg_attr(
-        feature = "cli",
-        structopt(name = "deposited", about = "Sort by time of most recent deposit")
-    )]
     Deposited,
     /// Sort by time of most recent index
-    #[cfg_attr(
-        feature = "cli",
-        structopt(name = "indexed", about = "Sort by time of most recent index")
-    )]
     Indexed,
     /// Sort by publication date
-    #[cfg_attr(
-        feature = "cli",
-        structopt(name = "published", about = "Sort by publication date")
-    )]
     Published,
     /// Sort by print publication date
-    #[cfg_attr(
-        feature = "cli",
-        structopt(name = "published-print", about = "Sort by print publication date")
-    )]
     PublishedPrint,
     /// Sort by online publication date
-    #[cfg_attr(
-        feature = "cli",
-        structopt(name = "published-online", about = "Sort by online publication date")
-    )]
     PublishedOnline,
     /// Sort by issued date (earliest known publication date)
-    #[cfg_attr(
-        feature = "cli",
-        structopt(
-            name = "issued",
-            about = "Sort by issued date (earliest known publication date)"
-        )
-    )]
     Issued,
     /// Sort by number of times this DOI is referenced by other Crossref DOIs
-    #[cfg_attr(
-        feature = "cli",
-        structopt(
-            name = "is-referenced-by-count",
-            about = "Sort by number of times this DOI is referenced by other Crossref DOIs"
-        )
-    )]
     IsReferencedByCount,
     /// Sort by number of references included in the references section of the document identified by this DOI
-    #[cfg_attr(
-        feature = "cli",
-        structopt(
-            name = "reference-count",
-            about = "Sort by number of references included in the references section of the document identified by this DOI"
-        )
-    )]
     ReferenceCount,
+    /// Sort by date the record was created
     Created,
-    Relevance
+    /// Sort by relevance to the query terms
+    Relevance,
 }
 
 impl Sort {
@@ -344,8 +280,8 @@ impl Sort {
             Sort::PublishedPrint => "published-print",
             Sort::PublishedOnline => "published-online",
             Sort::Issued => "issued",
-            Sort::IsReferencedByCount => "is-reference-by-count",
-            Sort::ReferenceCount => "reference-count",
+            Sort::IsReferencedByCount => "is-referenced-by-count",
+            Sort::ReferenceCount => "references-count",
             Sort::Created => "created",
             Sort::Relevance => "relevance"
             
@@ -353,7 +289,6 @@ impl Sort {
     }
 }
 
-#[cfg(feature = "cli")]
 impl FromStr for Sort {
     type Err = String;
 
@@ -367,19 +302,21 @@ impl FromStr for Sort {
             "published-print" => Ok(Sort::PublishedPrint),
             "published-online" => Ok(Sort::PublishedOnline),
             "issued" => Ok(Sort::Issued),
-            "is-reference-by-count" => Ok(Sort::IsReferencedByCount),
-            "reference-count" => Ok(Sort::ReferenceCount),
+            "is-referenced-by-count" => Ok(Sort::IsReferencedByCount),
+            "references-count" => Ok(Sort::ReferenceCount),
+            "created" => Ok(Sort::Created),
+            "relevance" => Ok(Sort::Relevance),
             other => Err(format!("Unable to convert {} to Sort", other)),
         }
     }
 }
 
 impl CrossrefQueryParam for Sort {
-    fn param_key(&self) -> Cow<str> {
+    fn param_key(&self) -> Cow<'_, str> {
         Cow::Borrowed("sort")
     }
 
-    fn param_value(&self) -> Option<Cow<str>> {
+    fn param_value(&self) -> Option<Cow<'_, str>> {
         Some(Cow::Borrowed(self.as_str()))
     }
 }
@@ -404,7 +341,7 @@ pub enum ResultControl {
 }
 
 impl CrossrefQueryParam for ResultControl {
-    fn param_key(&self) -> Cow<str> {
+    fn param_key(&self) -> Cow<'_, str> {
         match self {
             ResultControl::Rows(_) => Cow::Borrowed("rows"),
             ResultControl::Offset(_) => Cow::Borrowed("offset"),
@@ -415,12 +352,12 @@ impl CrossrefQueryParam for ResultControl {
         }
     }
 
-    fn param_value(&self) -> Option<Cow<str>> {
+    fn param_value(&self) -> Option<Cow<'_, str>> {
         match self {
             ResultControl::Rows(r) | ResultControl::Offset(r) | ResultControl::Sample(r) => {
                 Some(Cow::Owned(r.to_string()))
             }
-            ResultControl::RowsOffset { rows, offset } => None
+            ResultControl::RowsOffset { rows: _, offset: _ } => None
         }
     }
 }
@@ -525,12 +462,12 @@ pub trait Filter: ParamFragment {}
 
 impl<T: Filter> CrossrefQueryParam for Vec<T> {
     /// always use `filter` as the key
-    fn param_key(&self) -> Cow<str> {
+    fn param_key(&self) -> Cow<'_, str> {
         Cow::Borrowed("filter")
     }
 
     /// filters are multi value and values are concat with `,`
-    fn param_value(&self) -> Option<Cow<str>> {
+    fn param_value(&self) -> Option<Cow<'_, str>> {
         Some(Cow::Owned(
             self.iter()
                 .map(ParamFragment::fragment)
@@ -543,13 +480,13 @@ impl<T: Filter> CrossrefQueryParam for Vec<T> {
 /// represents a key value pair inside a multi value query string parameter
 pub trait ParamFragment {
     /// the key, or name, of the fragment
-    fn key(&self) -> Cow<str>;
+    fn key(&self) -> Cow<'_, str>;
 
     /// the value of the fragment, if any
-    fn value(&self) -> Option<Cow<str>>;
+    fn value(&self) -> Option<Cow<'_, str>>;
 
     /// key and value are concat using `:`
-    fn fragment(&self) -> Cow<str> {
+    fn fragment(&self) -> Cow<'_, str> {
         if let Some(val) = self.value() {
             Cow::Owned(format!("{}:{}", self.key(), val))
         } else {
@@ -561,11 +498,11 @@ pub trait ParamFragment {
 /// a trait used to capture parameters for the query string of the crossref api
 pub trait CrossrefQueryParam {
     /// the key name of the parameter in the query string
-    fn param_key(&self) -> Cow<str>;
+    fn param_key(&self) -> Cow<'_, str>;
     /// the value of the parameter, if any
-    fn param_value(&self) -> Option<Cow<str>>;
+    fn param_value(&self) -> Option<Cow<'_, str>>;
     /// constructs the full parameter for the query string by combining the key and value
-    fn param(&self) -> Cow<str> {
+    fn param(&self) -> Cow<'_, str> {
         if let Some(val) = self.param_value() {
             Cow::Owned(format!("{}={}", self.param_key(), val))
         } else {
@@ -575,11 +512,11 @@ pub trait CrossrefQueryParam {
 }
 
 impl<T: AsRef<str>> CrossrefQueryParam for (T, T) {
-    fn param_key(&self) -> Cow<str> {
+    fn param_key(&self) -> Cow<'_, str> {
         Cow::Borrowed(self.0.as_ref())
     }
 
-    fn param_value(&self) -> Option<Cow<str>> {
+    fn param_value(&self) -> Option<Cow<'_, str>> {
         Some(Cow::Borrowed(self.1.as_ref()))
     }
 }
@@ -629,4 +566,66 @@ pub(crate) fn format_queries<T: AsRef<str>>(topics: &[T]) -> String {
         .map(format_query)
         .collect::<Vec<_>>()
         .join("+")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The set crossref reports in its `400` response for an unknown sort field.
+    const API_SORT_FIELDS: &[&str] = &[
+        "score",
+        "created",
+        "issued",
+        "indexed",
+        "is-referenced-by-count",
+        "relevance",
+        "published",
+        "published-print",
+        "published-online",
+        "updated",
+        "references-count",
+        "deposited",
+    ];
+
+    const ALL_SORTS: &[Sort] = &[
+        Sort::Score,
+        Sort::Updated,
+        Sort::Deposited,
+        Sort::Indexed,
+        Sort::Published,
+        Sort::PublishedPrint,
+        Sort::PublishedOnline,
+        Sort::Issued,
+        Sort::IsReferencedByCount,
+        Sort::ReferenceCount,
+        Sort::Created,
+        Sort::Relevance,
+    ];
+
+    #[test]
+    fn every_sort_key_is_accepted_by_the_api() {
+        for sort in ALL_SORTS {
+            assert!(
+                API_SORT_FIELDS.contains(&sort.as_str()),
+                "`{:?}` renders as `{}`, which crossref rejects with a 400",
+                sort,
+                sort.as_str()
+            );
+        }
+    }
+
+    #[test]
+    fn sort_round_trips_through_from_str() {
+        for sort in ALL_SORTS {
+            assert_eq!(Ok(*sort), Sort::from_str(sort.as_str()));
+        }
+    }
+
+    #[test]
+    fn order_round_trips_through_from_str() {
+        for order in [Order::Asc, Order::Desc] {
+            assert_eq!(Ok(order), Order::from_str(order.as_str()));
+        }
+    }
 }

@@ -1,8 +1,7 @@
 Crossref-rs - A rust client for the Crossref-API
 =====================
-[![Build Status](https://travis-ci.com/MattsSe/crossref-rs.svg?branch=master)](https://travis-ci.com/MattsSe/crossref-rs)
-[![Crates.io](https://img.shields.io/crates/v/crossref.svg)](https://crates.io/crates/crossref)
-[![Documentation](https://docs.rs/crossref/badge.svg)](https://docs.rs/crossref)
+[![Crates.io](https://img.shields.io/crates/v/crossref-rs.svg)](https://crates.io/crates/crossref-rs)
+[![Documentation](https://docs.rs/crossref-rs/badge.svg)](https://docs.rs/crossref-rs)
 
 
 [Crossref API docs](https://github.com/CrossRef/rest-api-doc)
@@ -41,7 +40,9 @@ Encouraged to use the **The Polite Pool**:
 
 [Good manners = more reliable service](https://github.com/CrossRef/rest-api-doc#good-manners--more-reliable-service)
 
-To get into Crossref's polite pool include a email address
+Anonymous clients share a pool limited to roughly one request per second and will
+start returning `429`. Passing an email moves you to the polite pool, which
+currently allows several requests per second. To get into it, include an email address
 
 ```rust
 let client = Crossref::builder()
@@ -100,13 +101,13 @@ All options are supported by the client:
 Analogous methods exist for all resource components
 
 ```rust
-let work = client.work("10.1037/0003-066X.59.1.29")?;
+let work = client.work("10.1037/0003-066X.59.1.29").await?;
 
-let agency = client.work_agency("10.1037/0003-066X.59.1.29")?;
+let agency = client.work_agency("10.1037/0003-066X.59.1.29").await?;
 
-let funder = client.funder("funder_id")?;
+let funder = client.funder("funder_id").await?;
 
-let member = client.member("member_id")?;
+let member = client.member("member_id").await?;
 ```
 
 **Query**
@@ -115,13 +116,13 @@ let member = client.member("member_id")?;
 let query = WorksQuery::new("Machine Learning");
 
 // one page of the matching results
-let works = client.works(query)?;
+let works = client.works(query).await?;
 ```
 
 Alternatively insert a free form query term directly
 
 ```rust
-let works = client.works("Machine Learning")?;
+let works = client.works("Machine Learning").await?;
 ```
 
  **Combining Routes with the `Works` route**
@@ -129,11 +130,11 @@ let works = client.works("Machine Learning")?;
 For each resource component other than `Works` there exist methods to append a `WorksQuery` with the ID option `/members/{member_id}/works?<query>?`
 
 ```
-use crossref::*;
-fn run() -> Result<()> {
+use crossref_rs::*;
+async async fn run() -> Result<()> {
     let client = Crossref::builder().build()?;
     let works = client.member_works(WorksQuery::new("machine learning")
-    .sort(Sort::Score).into_ident("member_id"))?;
+        .sort(Sort::Score).into_ident("member_id")).await?;
     Ok(())
 }
 ```
@@ -141,12 +142,12 @@ fn run() -> Result<()> {
 This would be the same as using the [`Crossref::works`] method by supplying the combined type
 
 ```rust
-use crossref::*;
-fn run() -> Result<()> {
+use crossref_rs::*;
+async async fn run() -> Result<()> {
     let client = Crossref::builder().build()?;
     let works = client.works(WorksQuery::new("machine learning")
-     .sort(Sort::Score)
-     .into_combined_query::<Members>("member_id"))?;
+        .sort(Sort::Score)
+        .into_combined_query::<Members>("member_id")).await?;
     Ok(())
 }
 ```
@@ -162,24 +163,31 @@ Example
 Iterate over all `Works` linked to search term `Machine Learning`
 
 ```rust
-use crossref::{Crossref, WorksQuery, Work};
-fn run() -> Result<(), crossref::Error> {
+use crossref_rs::{AsyncIterator, Crossref, WorksQuery, Work};
+async fn run() -> Result<(), crossref_rs::Error> {
     let client = Crossref::builder().build()?;
-    
-    let all_works: Vec<Work> = client.deep_page(WorksQuery::new("Machine Learning")).flat_map(|x|x.items).collect();
-    
+
+    let mut pages = client.deep_page(WorksQuery::new("Machine Learning"));
+    let mut all_works: Vec<Work> = Vec::new();
+    while let Some(page) = pages.next().await {
+        all_works.extend(page.items);
+    }
+
     Ok(())
 }
 ```
 
 Which can be simplified to
 ```rust
-use crossref::{Crossref, WorksQuery, Work};
-fn run() -> Result<(), crossref::Error> {
+use crossref_rs::{AsyncIterator, Crossref, WorksQuery, Work};
+async fn run() -> Result<(), crossref_rs::Error> {
     let client = Crossref::builder().build()?;
-    
-    let all_works: Vec<Work> = client.deep_page("Machine Learning").into_work_iter().collect();
-    
+
+    let mut works = client.deep_page("Machine Learning").into_work_iter();
+    while let Some(work) = works.next().await {
+        println!("{}", work.doi);
+    }
+
     Ok(())
 }
 ```
@@ -189,15 +197,18 @@ Iterate over all the pages (`WorkList`) of the funder with id `funder id` by usi
 A single `WorkList` usually holds 20 `Work` items.
 
 ```rust
-use crossref::{Crossref, Funders, WorksQuery, Work, WorkList};
-fn run() -> Result<(), crossref::Error> {
+use crossref_rs::{AsyncIterator, Crossref, Funders, WorksQuery, Work, WorkList};
+async fn run() -> Result<(), crossref_rs::Error> {
     let client = Crossref::builder().build()?;
-    
-    let all_funder_work_list: Vec<WorkList> = client.deep_page(WorksQuery::default()
-            .into_combined_query::<Funders>("funder id")
-      )
-        .collect();
-    
+
+    let mut pages = client.deep_page(
+        WorksQuery::default().into_combined_query::<Funders>("funder id"),
+    );
+    let mut all_funder_work_list: Vec<WorkList> = Vec::new();
+    while let Some(page) = pages.next().await {
+        all_funder_work_list.push(page);
+    }
+
     Ok(())
 }
 ```
@@ -205,15 +216,18 @@ fn run() -> Result<(), crossref::Error> {
 Iterate over all `Work` items of a specfic funder directly.
 
 ```rust
-use crossref::{Crossref, Funders, WorksQuery, Work, WorkList};
-fn run() -> Result<(), crossref::Error> {
+use crossref_rs::{AsyncIterator, Crossref, Funders, WorksQuery, Work, WorkList};
+async fn run() -> Result<(), crossref_rs::Error> {
     let client = Crossref::builder().build()?;
-    
-    let all_works: Vec<Work> = client.deep_page(WorksQuery::default()
-         .into_combined_query::<Funders>("funder id"))
-         .into_work_iter()
-         .collect();
-    
+
+    let mut works = client.deep_page(
+        WorksQuery::default().into_combined_query::<Funders>("funder id"),
+    ).into_work_iter();
+    let mut all_works: Vec<Work> = Vec::new();
+    while let Some(work) = works.next().await {
+        all_works.push(work);
+    }
+
     Ok(())
 }
 ```
@@ -223,97 +237,101 @@ fn run() -> Result<(), crossref::Error> {
 
 ### Installation
 ```shell
-cargo install crossref --features cli
+cargo install crossref-rs --features cli
 ```
 
 ### Usage
 
 Top level subcommands
 ```text
-USAGE:
-    crossref <SUBCOMMAND>
+Usage: crossref <COMMAND>
 
-FLAGS:
-    -h, --help       Prints help information
-    -V, --version    Prints version information
+Commands:
+  works     Query crossref works
+  funders   Query crossref funders
+  members   Query crossref members
+  journals  Query crossref journals
+  prefixes  Query crossref prefixes
+  types     Query crossref types
+  help      Print this message or the help of the given subcommand(s)
 
-SUBCOMMANDS:
-    funders     Query crossref funders
-    help        Prints this message or the help of the given subcommand(s)
-    journals    Query crossref journals
-    members     Query crossref members
-    prefixes    Query crossref prefixes
-    types       Query crossref types
-    works       Query crossref works
-
+Options:
+  -h, --help     Print help
+  -V, --version  Print version
 ```
 
-Additional options for the component subcommands (querying, sorting, ordering and limiting is only supported for subcommands <works|funders|members> and is overridden by a present `--id` options)
-
+The `works` subcommand
 ```text
-USAGE:
-    crossref works [FLAGS] [OPTIONS] [SUBCOMMAND]
+Usage: crossref works [OPTIONS] [COMMAND]
 
-FLAGS:
-    -a, --append       if the output file already exists, append instead of overwriting the file
-    -d, --deep-page    Enable deep paging. If a limit is set, then the limit takes priority.
-    -h, --help         Prints help information
-    -s, --silent       do not print anything
-    -V, --version      Prints version information
+Commands:
+  member   Get Works of a specific Member
+  funder   Get Works of a specific Funder
+  journal  Get Works of a specific Journal
+  prefix   Get Works of a specific Prefix
+  type     Get Works of a specific Type
 
-OPTIONS:
-    -i, --id <id>                    The id of component.
-    -l, --limit <limit>              limit the amount of results
-        --offset <offset>            Sets an offset where crossref begins to retrieve items.
-        --order <order>              How to order the results: asc or desc
-    -o <output>                      output path where the results shall be stored
-        --polite <polite>            The email to use to get into crossref's polite pool
-    -q, --query <query_terms>...     The free form terms for the query
-        --sample <sample>            Request randoms Elements. Overrides all other options.
-        --sort <sort>                How to sort the results, such as updated, indexed, published, issued
-        --token <token>              The token to use for the crossref client
-        --user-agent <user_agent>    The user agent to use for the crossref client
+Options:
+  -d, --deep-page                Enable deep paging. If a limit is set, then the limit takes priority
+  -o, --output <OUTPUT>          output path where the results shall be stored
+  -a, --append                   if the output file already exists, append instead of overwriting the file
+  -l, --limit <LIMIT>            limit the amount of results
+  -i, --id <ID>                  The id of component
+  -q, --query <QUERY_TERMS>      The free form terms for the query
+      --sort <SORT>              How to sort the results, such as updated, indexed, published, issued
+      --order <ORDER>            How to order the results: asc or desc
+      --sample <SAMPLE>          Request random elements. Overrides all other options
+      --offset <OFFSET>          Sets an offset where crossref begins to retrieve items
+      --user-agent <USER_AGENT>  The user agent to use for the crossref client
+      --token <TOKEN>            The token to use for the crossref client
+      --polite <POLITE>          The email to use to get into crossref's polite pool
 ```
 
 ### Examples
 
-Retrieve a specific work by a doi
+Be polite: pass your email so requests are routed to crossref's polite pool
+(anonymous requests are limited to roughly 1 request/second and return `429`).
 
 ```shell
- crossref works --id "10.1037/0003-066X.59.1.29"
+crossref works --polite you@example.com --limit 10 --query "machine learning"
 ```
 
-Save the results as json
+Get a single work by DOI
 
 ```shell
- crossref works --id "10.1037/0003-066X.59.1.29" -o output.json
+crossref works --id "10.1037/0003-066X.59.1.29"
 ```
 
-Retrieve any other components by their ids
+Store the output in a file instead of printing to stdout
 
 ```shell
- crossref <works|journals|members|prefixes|types> --id "10.1037/0003-066X.59.1.29" -o output.json
+crossref works --id "10.1037/0003-066X.59.1.29" -o output.json
 ```
 
-Some components support additional filtering
+This works for every subcommand
 
-```
-crossref <works|funders|members> --query "A search term such as `Machine learning` for works" --limit 10 --offset 200 --order asc
+```shell
+crossref <works|journals|members|prefixes|types> --id "10.1037/0003-066X.59.1.29" -o output.json
 ```
 
-Get `Works` of a specific component, such as a member with the id `98`:
+Query with paging and ordering
 
+```shell
+crossref <works|funders|members> --query "machine learning" --limit 10 --offset 200 --order asc
 ```
+
+Get the works of a specific member
+
+```shell
 crossref works member 98
 ```
 
-`<prefix|funder|prefix|type` are also supported in the same way.
+By default deep paging is disabled, so at most a single crossref page (20 `Work` items)
+is returned. Pass `--deep-page` to page through the whole result set with a cursor.
 
-
-By default deep paging is disabled, hence the max amount of results of `Works` will be 20 (a single crossref page).
-By enabling the `--deep-page` flag, all available results will be gathered.
-
-To get in to the polite pool supply your email to the request headers with `--polite "polite@example.com"`
+```shell
+crossref works --deep-page --query "machine learning" -o all.json
+```
 
 ## License
 

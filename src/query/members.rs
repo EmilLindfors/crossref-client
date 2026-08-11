@@ -1,5 +1,5 @@
 use crate::error::Result;
-use crate::query::works::{WorksCombiner, WorksFilter, WorksIdentQuery, WorksQuery};
+use crate::query::works::{WorksCombiner, WorksIdentQuery};
 use crate::query::*;
 use std::borrow::Cow;
 
@@ -29,11 +29,11 @@ impl MembersFilter {
 }
 
 impl ParamFragment for MembersFilter {
-    fn key(&self) -> Cow<str> {
+    fn key(&self) -> Cow<'_, str> {
         Cow::Borrowed(self.name())
     }
 
-    fn value(&self) -> Option<Cow<str>> {
+    fn value(&self) -> Option<Cow<'_, str>> {
         match self {
             MembersFilter::HasPublicReferences => None,
             MembersFilter::ReferenceVisibility(vis) => Some(Cow::Borrowed(vis.as_str())),

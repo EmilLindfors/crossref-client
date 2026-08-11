@@ -1,5 +1,5 @@
-use crate::error::{Error, ErrorKind, Result};
-use crate::query::works::{WorksCombiner, WorksFilter, WorksIdentQuery, WorksQuery};
+use crate::error::{Error, Result};
+use crate::query::works::{WorksCombiner, WorksIdentQuery};
 use crate::query::{Component, CrossrefQuery, CrossrefRoute, ResourceComponent};
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
@@ -142,9 +142,9 @@ impl FromStr for Type {
             "book-series" => Ok(Type::BookSeries),
             "edited-book" => Ok(Type::EditedBook),
             "standard-series" => Ok(Type::StandardSeries),
-            name => Err(Error::from(ErrorKind::InvalidTypeName {
+            name => Err(Error::InvalidTypeName {
                 name: name.to_string(),
-            })),
+            }),
         }
     }
 }
@@ -179,9 +179,9 @@ impl CrossrefQuery for Types {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde_json::*;
+    
 
-    //    #[test]
+    #[test]
     fn test_types() {
         let section = r#"{
     "id": "book-section",

@@ -1,14 +1,32 @@
 #[cfg(test)]
 mod tests {
-    use crossref_rs::query::journals::{JournalResultControl, Journals};
+    use crossref_rs::query::journals::JournalResultControl;
     use crossref_rs::query::ResultControl;
     use crossref_rs::{
-        CrossrefBuilder, FieldQuery, Type, WorkResultControl, WorksFilter, WorksIdentQuery, WorksQuery
+        Crossref, CrossrefBuilder, FieldQuery, Type, WorkResultControl, WorksFilter,
+        WorksIdentQuery, WorksQuery,
     };
+
+    /// Contact address sent to crossref so these tests run in the polite pool
+    /// rather than the shared anonymous one, which rate-limits at `429`.
+    const CONTACT_EMAIL: &str = "emil@lindfors.no";
+
+    /// Even the polite pool caps requests per second, so these tests take turns
+    /// instead of firing concurrently and tripping `429`.
+    static API_TURN: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+
+    async fn client() -> (Crossref, tokio::sync::MutexGuard<'static, ()>) {
+        let turn = API_TURN.lock().await;
+        let client = CrossrefBuilder::default()
+            .polite(CONTACT_EMAIL)
+            .build()
+            .unwrap();
+        (client, turn)
+    }
 
     #[tokio::test]
     async fn test_journal_by_name() {
-        let client = CrossrefBuilder::default().build().unwrap();
+        let (client, _turn) = client().await;
         let response = client
             .works(
                 WorksQuery::empty()
@@ -28,7 +46,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_journal_by_issn() {
-        let client = CrossrefBuilder::default().build().unwrap();
+        let (client, _turn) = client().await;
         let jorunal = client.journal("0013-0095").await;
         println!("{:?}", jorunal);
         assert!(jorunal.is_ok());
@@ -36,7 +54,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_work_by_doi() {
-        let client = CrossrefBuilder::default().build().unwrap();
+        let (client, _turn) = client().await;
         let work = client.work("10.5555/12345678").await;
         println!("{:?}", work);
         assert!(work.is_ok());
@@ -44,7 +62,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_works_by_author() {
-        let client = CrossrefBuilder::default().build().unwrap();
+        let (client, _turn) = client().await;
         let response = client
             .works(
                 WorksQuery::empty()
@@ -65,8 +83,8 @@ mod tests {
 
     #[tokio::test]
     async fn combined_query() {
-        _ = tracing_subscriber::fmt::init();
-        let client = CrossrefBuilder::default().build().unwrap();
+        tracing_subscriber::fmt::init();
+        let (client, _turn) = client().await;
         let span = tracing::info_span!("combined_query");
         let _guard = span.enter();
         let response = client
@@ -93,7 +111,7 @@ mod tests {
 
     #[tokio::test]
     async fn journal_query() {
-        let client = CrossrefBuilder::default().build().unwrap();
+        let (client, _turn) = client().await;
         let control = Some(JournalResultControl::new_from_limit(10));
         let response = client
             .journals("Economic Geography".to_string(), control)

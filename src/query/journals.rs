@@ -1,7 +1,6 @@
-use crate::error::{ErrorKind, Result};
-use crate::query::works::{WorksCombiner, WorksFilter, WorksIdentQuery, WorksQuery};
+use crate::error::{Error, Result};
+use crate::query::works::{WorksCombiner, WorksIdentQuery};
 use crate::query::{Component, CrossrefQuery, CrossrefRoute, ResourceComponent};
-use crate::WorkResultControl;
 
 #[derive(Debug, Clone)]
 pub struct JournalResultControl {
@@ -77,27 +76,30 @@ impl JournalResultControl {
         self
     }
 
-    pub fn to_string(&self) -> String {
-        let mut rc = String::new();
+}
+
+impl std::fmt::Display for JournalResultControl {
+    /// Renders the result control as a query string fragment, e.g. `rows=10&offset=20`.
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut params = Vec::new();
         if let Some(l) = self.limit {
-            rc.push_str(&format!("rows={}&", l));
+            params.push(format!("rows={}", l));
         }
         if let Some(o) = self.offset {
-            rc.push_str(&format!("offset={}&", o));
+            params.push(format!("offset={}", o));
         }
         if let Some(s) = self.sample {
-            rc.push_str(&format!("sample={}&", s));
+            params.push(format!("sample={}", s));
         }
         if let Some(s) = &self.sort {
-            rc.push_str(&format!("sort={}&", s));
+            params.push(format!("sort={}", s));
         }
-        rc.pop(); // remove trailing '&'
-        rc
+        f.write_str(&params.join("&"))
     }
 }
 
 impl TryFrom<String> for JournalResultControl {
-    type Error = ErrorKind;
+    type Error = Error;
 
     fn try_from(value: String) -> std::result::Result<Self, Self::Error> {
         
@@ -111,30 +113,30 @@ impl TryFrom<String> for JournalResultControl {
         for part in parts {
             let kv = part.split('=').collect::<Vec<&str>>();
             if kv.len() != 2 {
-                return Err(ErrorKind::InvalidResultControl {
+                return Err(Error::InvalidResultControl {
                     error: value.clone(),
                 });
             }
             match kv[0] {
                 "rows" => {
-                    limit = Some(kv[1].parse().map_err(|e| ErrorKind::InvalidResultControl {
+                    limit = Some(kv[1].parse().map_err(|e| Error::InvalidResultControl {
                         error: format!("Invalid limit: {}", e),
                     })?);
                 }
                 "offset" => {
-                    offset = Some(kv[1].parse().map_err(|e| ErrorKind::InvalidResultControl {
+                    offset = Some(kv[1].parse().map_err(|e| Error::InvalidResultControl {
                         error: format!("Invalid offset: {}", e),
                     })?);
                 }
                 "sample" => {
-                    sample = Some(kv[1].parse().map_err(|e| ErrorKind::InvalidResultControl {
+                    sample = Some(kv[1].parse().map_err(|e| Error::InvalidResultControl {
                         error: format!("Invalid sample: {}", e),
                     })?);
                 }
                 "sort" => {
                     sort = Some(kv[1].to_string());
                 }
-                _ => return Err(ErrorKind::InvalidResultControl { error: value.clone() }),
+                _ => return Err(Error::InvalidResultControl { error: value.clone() }),
             }
         }
 
@@ -171,9 +173,9 @@ impl CrossrefRoute for Journals {
                 let q = query.split(' ').collect::<Vec<&str>>().join("+");
                 if let Some(rc) = result_control {
                     if query.is_empty() {
-                        Ok(format!("{}/?{}", Component::Journals.route()?, rc.to_string()))
+                        Ok(format!("{}/?{}", Component::Journals.route()?, rc))
                     } else {
-                        Ok(format!("{}/?query={}&{}", Component::Journals.route()?, q, rc.to_string()))
+                        Ok(format!("{}/?query={}&{}", Component::Journals.route()?, q, rc))
                     }
                 } else {
                     Ok(format!("{}/?query={}", Component::Journals.route()?, q))

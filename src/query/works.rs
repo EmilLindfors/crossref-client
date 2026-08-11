@@ -1,14 +1,9 @@
-use crate::error::{Error, Result};
+use crate::error::Result;
 use crate::query::facet::FacetCount;
 use crate::query::types::Type;
 use crate::query::*;
 use chrono::NaiveDate;
-use serde::Serializer as SerdeSerializer;
-use serde::{Deserialize, Serialize};
-use serde_json::Value;
 use std::borrow::Cow;
-#[cfg(feature = "cli")]
-use structopt::StructOpt;
 
 /// Filters allow you to narrow queries. All filter results are lists
 #[derive(Debug, Clone)]
@@ -347,7 +342,7 @@ impl WorksFilter {
             WorksFilter::AlternativeId => "alternative-id",
             WorksFilter::ArticleNumber => "article-number",
             WorksFilter::HasAbstract => "has-abstract",
-            WorksFilter::HasClinicalTrialNumber => "has-clinical-trial-number	",
+            WorksFilter::HasClinicalTrialNumber => "has-clinical-trial-number",
             WorksFilter::ContentDomain(_) => "content-domain",
             WorksFilter::HasContentDomain => "has-content-domain",
             WorksFilter::HasDomainRestriction => "has-domain-restriction",
@@ -360,11 +355,11 @@ impl WorksFilter {
 }
 
 impl ParamFragment for WorksFilter {
-    fn key(&self) -> Cow<str> {
+    fn key(&self) -> Cow<'_, str> {
         Cow::Borrowed(self.name())
     }
 
-    fn value(&self) -> Option<Cow<str>> {
+    fn value(&self) -> Option<Cow<'_, str>> {
         match self {
             WorksFilter::Funder(s)
             | WorksFilter::Location(s)
@@ -422,7 +417,6 @@ impl Filter for WorksFilter {}
 
 /// Field queries are available on the `/works` route and allow for queries that match only particular fields of metadata.
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "cli", derive(StructOpt))]
 pub struct FieldQuery {
     /// match any only particular fields of metadata.
     pub name: String,
@@ -499,10 +493,10 @@ impl FieldQuery {
 }
 
 impl CrossrefQueryParam for FieldQuery {
-    fn param_key(&self) -> Cow<str> {
+    fn param_key(&self) -> Cow<'_, str> {
         Cow::Borrowed(&self.name)
     }
-    fn param_value(&self) -> Option<Cow<str>> {
+    fn param_value(&self) -> Option<Cow<'_, str>> {
         Some(Cow::Owned(format_query(&self.value)))
     }
 }
@@ -546,23 +540,26 @@ impl Default for WorkResultControl {
 }
 
 impl CrossrefQueryParam for WorkResultControl {
-    fn param_key(&self) -> Cow<str> {
+    // `Cursor` spans two query parameters, so it renders both from `param_key`
+    // and leaves `param_value` empty rather than letting `param` join them with
+    // an `=`, which produced `cursor=*=rows=20`.
+    fn param_key(&self) -> Cow<'_, str> {
         match self {
             WorkResultControl::Standard(s) => s.param_key(),
-            WorkResultControl::Cursor { token, .. } => Cow::Owned(format!(
-                "cursor={}",
-                token.as_ref().map(String::as_str).unwrap_or("*")
-            )),
+            WorkResultControl::Cursor { token, rows } => {
+                let token = token.as_deref().unwrap_or("*");
+                match rows {
+                    Some(rows) => Cow::Owned(format!("cursor={}&rows={}", token, rows)),
+                    None => Cow::Owned(format!("cursor={}", token)),
+                }
+            }
         }
     }
 
-    fn param_value(&self) -> Option<Cow<str>> {
+    fn param_value(&self) -> Option<Cow<'_, str>> {
         match self {
             WorkResultControl::Standard(s) => s.param_value(),
-            WorkResultControl::Cursor { rows, .. } => match rows {
-                Some(r) => Some(Cow::Owned(format!("rows={}", r))),
-                _ => None,
-            },
+            WorkResultControl::Cursor { .. } => None,
         }
     }
 }
@@ -571,8 +568,8 @@ impl CrossrefQueryParam for WorkResultControl {
 ///
 /// # Example
 ///
-/// ```edition2018
-/// use crossref::Works;
+/// ```no_run
+/// use crossref_rs::Works;
 ///
 /// let works = Works::doi("10.1037/0003-066X.59.1.29");
 /// ```
@@ -581,8 +578,8 @@ impl CrossrefQueryParam for WorkResultControl {
 ///
 /// # Example
 ///
-/// ```edition2018
-/// use crossref::Works;
+/// ```no_run
+/// use crossref_rs::Works;
 ///
 /// let works = Works::agency_for_doi("10.1037/0003-066X.59.1.29");
 /// ```
@@ -654,9 +651,9 @@ impl WorkListQuery {
     }
 }
 
-impl Into<WorkListQuery> for WorksQuery {
-    fn into(self) -> WorkListQuery {
-        WorkListQuery::Works(self)
+impl From<WorksQuery> for WorkListQuery {
+    fn from(val: WorksQuery) -> Self {
+        WorkListQuery::Works(val)
     }
 }
 
@@ -706,16 +703,16 @@ impl CrossrefQuery for WorkListQuery {
 ///
 /// # Example
 ///
-/// ```edition2018
-/// use crossref::{WorksIdentQuery, WorksQuery};
+/// ```no_run
+/// use crossref_rs::{WorksIdentQuery, WorksQuery};
 ///
 /// let combined = WorksIdentQuery::new("100000015", WorksQuery::new("ontologies"));
 ///
 /// ```
 /// Is equal to create a `WorksIdentQuery` from a `WorksQuery`
 ///
-/// ```edition2018
-/// use crossref::WorksQuery;
+/// ```no_run
+/// use crossref_rs::WorksQuery;
 ///
 /// let combined = WorksQuery::new("ontologies").into_ident("100000015");
 ///
@@ -817,8 +814,8 @@ impl WorksQuery {
     ///
     /// # Example
     ///
-    /// ```edition2018
-    /// use crossref::WorksQuery;
+    /// ```no_run
+    /// use crossref_rs::WorksQuery;
     ///
     /// let query = WorksQuery::default().queries(&["renear", "ontologies"]);
     /// ```
@@ -837,18 +834,18 @@ impl WorksQuery {
 
         /// select which fields to return
         pub fn elements(mut self, element: Vec<WorkElement>) -> Self {
-            self.elements.extend(element.into_iter());
+            self.elements.extend(element);
             self
         }
 
-    /// ```edition2018
-    /// use crossref::{FieldQuery,WorksQuery};
+    /// ```no_run
+    /// use crossref_rs::{FieldQuery,WorksQuery};
     ///
     /// let query = WorksQuery::default().field_queries(vec![FieldQuery::title("room at the bottom"), FieldQuery::author("richard feynman")]);
     /// ```
     /// add a bunch of free form query terms
     pub fn field_queries(mut self, queries: Vec<FieldQuery>) -> Self {
-        self.field_queries.extend(queries.into_iter());
+        self.field_queries.extend(queries);
         self
     }
 
@@ -905,8 +902,8 @@ impl WorksQuery {
     /// # Example
     /// Create a Funders Query that targets all works of a funder with id `funder id`.
     ///
-    /// ```edition2018
-    /// # use crossref::{WorksQuery, Funders};
+    /// ```no_run
+    /// # use crossref_rs::{WorksQuery, Funders};
     /// let funders: Funders = WorksQuery::default().into_combined("funder id");
     /// ```
     pub fn into_combined<W: WorksCombiner>(self, id: &str) -> W {
@@ -919,14 +916,14 @@ impl WorksQuery {
     }
 
     /// wrap this query in new `WorkListQuery` that targets the `/works` route of a primary component with an id.
-    /// The query will evaluate to the same as [`into_combined`]
+    /// The query will evaluate to the same as [`WorksQuery::into_combined`]
     ///
     /// # Example
     ///
     /// Create a query that targets all `Works` of a funder with id `funder id`
     ///
-    /// ```edition2018
-    /// # use crossref::{WorksQuery, Funders};
+    /// ```no_run
+    /// # use crossref_rs::{WorksQuery, Funders};
     /// let query = WorksQuery::default()
     ///     .into_combined_query::<Funders>("funder id");
     ///
@@ -940,8 +937,8 @@ impl WorksQuery {
 ///
 /// # Example
 ///
-/// ```edition2018
-/// use crossref::{Order, WorksQuery};
+/// ```no_run
+/// use crossref_rs::{Order, WorksQuery};
 ///
 /// // create a new query for topcis machine+learning ordered desc
 /// let query = WorksQuery::new("machine learning").order(Order::Desc);
@@ -976,7 +973,7 @@ impl CrossrefRoute for WorksQuery {
         let mut params = Vec::new();
 
         if let Some(sample) = self.sample {
-            return Ok(format!("sample={}", sample));
+            return Ok(format!("{}?sample={}", Component::Works.route()?, sample));
         }
 
         if !self.free_form_queries.is_empty() {
@@ -995,7 +992,7 @@ impl CrossrefRoute for WorksQuery {
     
             let mut elements = self.elements.iter().fold("select=".to_string(), |mut acc, e| {
                 acc.push_str(e.name());
-                acc.push_str(",");
+                acc.push(',');
                 acc
             });
             elements.pop();
@@ -1058,5 +1055,53 @@ mod tests {
         let works = Works::doi("10.1037/0003-066X.59.1.29");
 
         assert_eq!("/works/10.1037/0003-066X.59.1.29", &works.route().unwrap())
+    }
+
+    #[test]
+    fn sample_query_keeps_the_works_route() {
+        // a bare `sample=n` used to be returned without the `/works?` prefix,
+        // which concatenated straight onto the base url
+        let route = WorksQuery::random(10).route().unwrap();
+
+        assert_eq!("/works?sample=10", &route);
+
+        let query: WorkListQuery = WorksQuery::random(10).into();
+        assert_eq!(
+            "https://api.crossref.org/works?sample=10",
+            &query.to_url("https://api.crossref.org").unwrap()
+        );
+    }
+
+    #[test]
+    fn filter_names_have_no_stray_whitespace() {
+        let route = WorksQuery::empty()
+            .filter(WorksFilter::HasClinicalTrialNumber)
+            .route()
+            .unwrap();
+
+        assert_eq!("/works?filter=has-clinical-trial-number:true", &route);
+    }
+
+    #[test]
+    fn cursor_with_rows_renders_two_parameters() {
+        let query = WorksQuery::empty().result_control(WorkResultControl::Cursor {
+            token: Some("abc".to_string()),
+            rows: Some(20),
+        });
+
+        assert_eq!("/works?cursor=abc&rows=20", &query.route().unwrap());
+    }
+
+    #[test]
+    fn new_cursor_renders_the_wildcard_token() {
+        let query = WorksQuery::empty().new_cursor();
+
+        assert_eq!("/works?cursor=*", &query.route().unwrap());
+    }
+
+    #[test]
+    fn referenced_by_count_uses_the_crossref_spelling() {
+        // `is-reference-by-count` is rejected by the api with a 400
+        assert_eq!("is-referenced-by-count", Sort::IsReferencedByCount.as_str());
     }
 }
