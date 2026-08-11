@@ -265,13 +265,20 @@ impl DateParts {
     /// standalone years are allowed.
     /// if an array is empty, [None] will be returned
     pub fn as_date(&self) -> Option<DateField> {
-        /// converts an array of numbers into chrono [NaiveDate] if it contains at least a single value
-        fn naive(v: &[Option<u32>]) -> Option<NaiveDate> {
-            match v.len() {
-                0 => None,
-                1 => NaiveDate::from_ymd_opt(v[0]? as i32, 0, 0),
-                2 => NaiveDate::from_ymd_opt(v[0]? as i32, v[1]?, 0),
-                3 => NaiveDate::from_ymd_opt(v[0]? as i32, v[1]?, v[2]?),
+        /// Converts one array of numbers into a chrono [`NaiveDate`].
+        ///
+        /// Crossref deposits a date to whatever precision the member gave it,
+        /// so `[2022]` is a whole year and `[2022, 5]` a whole month. A
+        /// [`NaiveDate`] cannot be partial, so what is missing reads as the
+        /// first of what contains it -- the day a work published "in 2022" is
+        /// sorted and cited by. Asking chrono for a zeroth month instead, as
+        /// this once did, is not a date at all: it answered [`None`] for every
+        /// year-only date crossref sent, which is most of them.
+        fn naive(parts: &[Option<u32>]) -> Option<NaiveDate> {
+            match parts {
+                [year] => NaiveDate::from_ymd_opt((*year)? as i32, 1, 1),
+                [year, month] => NaiveDate::from_ymd_opt((*year)? as i32, (*month)?, 1),
+                [year, month, day] => NaiveDate::from_ymd_opt((*year)? as i32, (*month)?, (*day)?),
                 _ => None,
             }
         }
@@ -667,6 +674,64 @@ mod tests {
     struct Demo {
         pub date_parts: DateParts,
     }
+    /// Crossref sends `issued` as a bare year far more often than as a full
+    /// date, so a partial date that reads as no date at all takes
+    /// [`Work::citekey`] and every year comparison down with it.
+    #[test]
+    fn a_date_deposited_to_the_year_or_the_month_is_still_a_date() {
+        let year = DateParts(vec![vec![Some(2022)]]);
+        assert_eq!(
+            Some(DateField::Single(
+                NaiveDate::from_ymd_opt(2022, 1, 1).unwrap()
+            )),
+            year.as_date()
+        );
+        assert_eq!(2022, year.as_date().unwrap().year());
+
+        let month = DateParts(vec![vec![Some(2022), Some(5)]]);
+        assert_eq!(
+            Some(DateField::Single(
+                NaiveDate::from_ymd_opt(2022, 5, 1).unwrap()
+            )),
+            month.as_date()
+        );
+
+        let day = DateParts(vec![vec![Some(2022), Some(5), Some(19)]]);
+        assert_eq!(
+            Some(DateField::Single(
+                NaiveDate::from_ymd_opt(2022, 5, 19).unwrap()
+            )),
+            day.as_date()
+        );
+    }
+
+    #[test]
+    fn a_date_that_is_no_date_reads_as_none() {
+        assert_eq!(None, DateParts(vec![]).as_date());
+        assert_eq!(None, DateParts(vec![vec![]]).as_date());
+        assert_eq!(None, DateParts(vec![vec![None]]).as_date());
+        // a fifth number is not a date crossref has any way of meaning
+        assert_eq!(
+            None,
+            DateParts(vec![vec![Some(2022), Some(5), Some(19), Some(12)]]).as_date()
+        );
+        // and an impossible one stays impossible
+        assert_eq!(None, DateParts(vec![vec![Some(2022), Some(13)]]).as_date());
+    }
+
+    #[test]
+    fn a_range_and_a_list_of_dates_keep_the_year_they_start_at() {
+        let range = DateParts(vec![vec![Some(2021), Some(5)], vec![Some(2022), Some(6)]]);
+        assert_eq!(2021, range.as_date().unwrap().year());
+
+        let multi = DateParts(vec![
+            vec![Some(2021)],
+            vec![Some(2022)],
+            vec![Some(2023), Some(1), Some(9)],
+        ]);
+        assert_eq!(2021, multi.as_date().unwrap().year());
+    }
+
     #[test]
     fn date_parts_serde() {
         let demo = Demo {
