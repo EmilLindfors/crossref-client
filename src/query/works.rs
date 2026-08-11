@@ -892,6 +892,103 @@ impl CrossrefRoute for WorksQuery {
 mod tests {
     use super::*;
 
+    /// `from_name` is how a caller that learns a filter at runtime reaches the
+    /// same enum a caller writing one out reaches, so every kind of value a
+    /// filter carries has to read back from the way it renders.
+    #[test]
+    fn a_filter_reads_back_from_the_name_and_value_it_renders_as() {
+        let read_back = |filter: &WorksFilter| {
+            let value = ParamFragment::value(filter);
+            WorksFilter::from_name(filter.name(), value.as_deref()).unwrap()
+        };
+
+        for filter in [
+            WorksFilter::HasAbstract,
+            WorksFilter::Doi("10.1016/j.marpol.2021.104855".to_string()),
+            WorksFilter::FromPubDate(NaiveDate::from_ymd_opt(2021, 1, 1).unwrap()),
+            WorksFilter::LicenseDelay(30),
+            WorksFilter::GteAwardAmount(1_000_000),
+            WorksFilter::TypeName("journal-article".to_string()),
+        ] {
+            assert_eq!(filter, read_back(&filter));
+        }
+    }
+
+    #[test]
+    fn a_marker_is_asked_for_as_present_and_nothing_else() {
+        assert_eq!(
+            Ok(WorksFilter::HasAbstract),
+            WorksFilter::from_name("has-abstract", None)
+        );
+        assert_eq!(
+            Ok(WorksFilter::HasAbstract),
+            WorksFilter::from_name("has-abstract", Some("true"))
+        );
+        assert_eq!(
+            Err(FilterParseError::MarkerWithValue {
+                name: "has-abstract".to_string()
+            }),
+            WorksFilter::from_name("has-abstract", Some("false"))
+        );
+    }
+
+    #[test]
+    fn a_filter_that_narrows_by_a_value_is_not_a_filter_without_one() {
+        assert_eq!(
+            Err(FilterParseError::MissingValue {
+                name: "issn".to_string()
+            }),
+            WorksFilter::from_name("issn", None)
+        );
+    }
+
+    /// The parse is where a value crossref would refuse is caught, so a date
+    /// that is not a date costs no request.
+    #[test]
+    fn a_value_the_filter_cannot_narrow_by_is_refused_here() {
+        assert_eq!(
+            Err(FilterParseError::UnreadableValue {
+                name: "from-pub-date".to_string(),
+                value: "last tuesday".to_string(),
+            }),
+            WorksFilter::from_name("from-pub-date", Some("last tuesday"))
+        );
+        assert_eq!(
+            Err(FilterParseError::UnreadableValue {
+                name: "license.delay".to_string(),
+                value: "a while".to_string(),
+            }),
+            WorksFilter::from_name("license.delay", Some("a while"))
+        );
+    }
+
+    #[test]
+    fn a_name_no_filter_goes_by_is_refused_with_the_name_that_was_asked_for() {
+        assert_eq!(
+            Err(FilterParseError::UnknownName {
+                name: "has-astract".to_string()
+            }),
+            WorksFilter::from_name("has-astract", None)
+        );
+        // `location` belongs to /funders, and /works answers it with a 400
+        assert!(WorksFilter::from_name("location", Some("Norway")).is_err());
+    }
+
+    #[test]
+    fn every_filter_the_route_takes_is_reachable_by_name() {
+        for name in WorksFilter::ALL_NAMES {
+            // one value of every kind a filter can carry, since which kind
+            // goes with which name is the thing under test
+            let filter = WorksFilter::from_name(name, Some("2021-01-01"))
+                .or_else(|_| WorksFilter::from_name(name, Some("1")))
+                .or_else(|_| WorksFilter::from_name(name, Some("journal-article")))
+                .or_else(|_| WorksFilter::from_name(name, None))
+                .unwrap_or_else(|err| panic!("`{name}` is named by nothing: {err}"));
+
+            assert_eq!(*name, filter.name());
+        }
+    }
+
     #[test]
     fn serialize_works_ident() {
         let works = Works::doi("10.1037/0003-066X.59.1.29");

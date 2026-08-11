@@ -19,14 +19,22 @@ use std::str::FromStr;
 /// [`define_filter!`] can render every variant without a per-type match arm --
 /// the catch-all arm that used to do that job silently turned
 /// `WorksFilter::AlternativeId(id)` into `alternative-id:true`.
-pub(crate) trait FilterValue {
+pub(crate) trait FilterValue: Sized {
     /// the value as it appears after the `:`
     fn render(&self) -> Cow<'_, str>;
+
+    /// the value read back from the way it renders, for callers that learn a
+    /// filter at runtime -- a command line flag, a config file
+    fn parse(value: &str) -> Option<Self>;
 }
 
 impl FilterValue for String {
     fn render(&self) -> Cow<'_, str> {
         Cow::Borrowed(self)
+    }
+
+    fn parse(value: &str) -> Option<Self> {
+        Some(value.to_string())
     }
 }
 
@@ -34,11 +42,19 @@ impl FilterValue for i32 {
     fn render(&self) -> Cow<'_, str> {
         Cow::Owned(self.to_string())
     }
+
+    fn parse(value: &str) -> Option<Self> {
+        value.parse().ok()
+    }
 }
 
 impl FilterValue for u64 {
     fn render(&self) -> Cow<'_, str> {
         Cow::Owned(self.to_string())
+    }
+
+    fn parse(value: &str) -> Option<Self> {
+        value.parse().ok()
     }
 }
 
@@ -46,12 +62,57 @@ impl FilterValue for chrono::NaiveDate {
     fn render(&self) -> Cow<'_, str> {
         Cow::Owned(self.format("%Y-%m-%d").to_string())
     }
+
+    fn parse(value: &str) -> Option<Self> {
+        chrono::NaiveDate::parse_from_str(value, "%Y-%m-%d").ok()
+    }
 }
 
 impl FilterValue for types::Type {
     fn render(&self) -> Cow<'_, str> {
         Cow::Borrowed(self.id())
     }
+
+    fn parse(value: &str) -> Option<Self> {
+        value.parse().ok()
+    }
+}
+
+/// Why a `name` and `value` are not a filter a route takes, as
+/// [`WorksFilter::from_name`](crate::WorksFilter::from_name) reports it.
+///
+/// The name a caller got wrong is carried along, since the caller that reads
+/// filters at runtime is the one that has to say which of them was refused.
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+pub enum FilterParseError {
+    /// no filter of this route goes by that name
+    #[error("`{name}` is not a filter this route takes")]
+    UnknownName {
+        /// the name that was asked for
+        name: String,
+    },
+    /// the filter narrows to records that have something, which is not a thing
+    /// records can have a value of
+    #[error("`{name}` takes no value; it asks only whether the record has one")]
+    MarkerWithValue {
+        /// the filter that was given a value
+        name: String,
+    },
+    /// the filter narrows to a value and was given none
+    #[error("`{name}` needs a value, as `{name}:<value>`")]
+    MissingValue {
+        /// the filter that was given no value
+        name: String,
+    },
+    /// the value is not of the kind the filter narrows by, e.g. a date that is
+    /// not a date
+    #[error("`{value}` is not a value `{name}` can narrow by")]
+    UnreadableValue {
+        /// the filter that was given the value
+        name: String,
+        /// the value it could not read
+        value: String,
+    },
 }
 
 /// Defines a route's filter enum together with everything that has to stay in
@@ -87,6 +148,40 @@ macro_rules! define_filter {
                 match self {
                     $($name::$m_variant => $m_key,)*
                     $($name::$v_variant(_) => $v_key,)*
+                }
+            }
+
+            /// The filter crossref knows by this name, carrying this value --
+            /// the inverse of [`name`](Self::name), for callers that learn a
+            /// filter at runtime rather than writing it out.
+            ///
+            /// A marker takes no value, or the `true` it renders as; every
+            /// other filter takes one, parsed into whatever that filter
+            /// carries, so a date that is not a date is caught here rather
+            /// than by crossref.
+            pub fn from_name(
+                name: &str,
+                value: Option<&str>,
+            ) -> ::std::result::Result<Self, $crate::query::FilterParseError> {
+                use $crate::query::{FilterParseError, FilterValue};
+
+                match name {
+                    $($m_key => match value {
+                        None | Some("true") => Ok($name::$m_variant),
+                        Some(_) => Err(FilterParseError::MarkerWithValue {
+                            name: name.to_string(),
+                        }),
+                    },)*
+                    $($v_key => match value {
+                        None => Err(FilterParseError::MissingValue { name: name.to_string() }),
+                        Some(value) => <$v_ty as FilterValue>::parse(value)
+                            .map($name::$v_variant)
+                            .ok_or_else(|| FilterParseError::UnreadableValue {
+                                name: name.to_string(),
+                                value: value.to_string(),
+                            }),
+                    },)*
+                    _ => Err(FilterParseError::UnknownName { name: name.to_string() }),
                 }
             }
         }
@@ -274,6 +369,27 @@ macro_rules! define_field_queries {
             /// the term being matched
             pub fn value(&self) -> &str {
                 match self { $(FieldQuery::$variant(value) => value,)* }
+            }
+
+            /// The query against the field crossref knows by this name, the
+            /// inverse of [`FieldQuery::field`], or [`None`] if `/works`
+            /// carries no such field. For callers that learn the field at
+            /// runtime -- a command line flag, a config file -- rather than
+            /// writing it out.
+            ///
+            /// ```
+            /// # use crossref_client::FieldQuery;
+            /// assert_eq!(
+            ///     Some(FieldQuery::author("feynman")),
+            ///     FieldQuery::from_field("author", "feynman")
+            /// );
+            /// assert_eq!(None, FieldQuery::from_field("query.author", "feynman"));
+            /// ```
+            pub fn from_field(field: &str, value: impl Into<String>) -> Option<Self> {
+                match field {
+                    $($key => Some(FieldQuery::$variant(value.into())),)*
+                    _ => None,
+                }
             }
 
             $(
