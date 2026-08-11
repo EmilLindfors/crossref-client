@@ -1,5 +1,5 @@
 //! Prints which crossref rate-limit pool the configured client lands in.
-use crossref_rs::Crossref;
+use crossref_client::Crossref;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {

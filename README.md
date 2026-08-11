@@ -1,15 +1,21 @@
-Crossref-rs - A rust client for the Crossref-API
+crossref-client - An async Rust client for the Crossref REST API
 =====================
-[![Crates.io](https://img.shields.io/crates/v/crossref-rs.svg)](https://crates.io/crates/crossref-rs)
-[![Documentation](https://docs.rs/crossref-rs/badge.svg)](https://docs.rs/crossref-rs)
+[![Crates.io](https://img.shields.io/crates/v/crossref-client.svg)](https://crates.io/crates/crossref-client)
+[![Documentation](https://docs.rs/crossref-client/badge.svg)](https://docs.rs/crossref-client)
 
+[Crossref API docs](https://api.crossref.org/swagger-ui/index.html)
 
-[Crossref API docs](https://github.com/CrossRef/rest-api-doc)
+> **Fork notice.** `crossref-client` is a hard fork of
+> [MattsSe/crossref-rs](https://github.com/MattsSe/crossref-rs), which is no
+> longer maintained. It has diverged substantially — the client is async,
+> targets Rust 2024, and carries breaking changes to the query and response
+> types. Changes here are **not** upstreamed. The original work is retained
+> under its MIT/Apache-2.0 licence; see [LICENSE-MIT](LICENSE-MIT).
+>
+> Upstream's design is in turn inspired by
+> [sckott/habanero](https://github.com/sckott/habanero/).
 
-This client is inspired by [sckott/habanero](https://github.com/sckott/habanero/).
-
-
-`Crossref` - Crossref search API. The `Crossref` crate provides methods matching Crossref API routes:
+The `Crossref` client provides methods matching the Crossref API routes:
 
 * `works` - `/works` route
 * `members` - `/members` route
@@ -130,8 +136,8 @@ let works = client.works("Machine Learning").await?;
 For each resource component other than `Works` there exist methods to append a `WorksQuery` with the ID option `/members/{member_id}/works?<query>?`
 
 ```
-use crossref_rs::*;
-async async fn run() -> Result<()> {
+use crossref_client::*;
+async fn run() -> Result<()> {
     let client = Crossref::builder().build()?;
     let works = client.member_works(WorksQuery::new("machine learning")
         .sort(Sort::Score).into_ident("member_id")).await?;
@@ -142,8 +148,8 @@ async async fn run() -> Result<()> {
 This would be the same as using the [`Crossref::works`] method by supplying the combined type
 
 ```rust
-use crossref_rs::*;
-async async fn run() -> Result<()> {
+use crossref_client::*;
+async fn run() -> Result<()> {
     let client = Crossref::builder().build()?;
     let works = client.works(WorksQuery::new("machine learning")
         .sort(Sort::Score)
@@ -163,8 +169,8 @@ Example
 Iterate over all `Works` linked to search term `Machine Learning`
 
 ```rust
-use crossref_rs::{AsyncIterator, Crossref, WorksQuery, Work};
-async fn run() -> Result<(), crossref_rs::Error> {
+use crossref_client::{AsyncIterator, Crossref, WorksQuery, Work};
+async fn run() -> Result<(), crossref_client::Error> {
     let client = Crossref::builder().build()?;
 
     let mut pages = client.deep_page(WorksQuery::new("Machine Learning"));
@@ -179,8 +185,8 @@ async fn run() -> Result<(), crossref_rs::Error> {
 
 Which can be simplified to
 ```rust
-use crossref_rs::{AsyncIterator, Crossref, WorksQuery, Work};
-async fn run() -> Result<(), crossref_rs::Error> {
+use crossref_client::{AsyncIterator, Crossref, WorksQuery, Work};
+async fn run() -> Result<(), crossref_client::Error> {
     let client = Crossref::builder().build()?;
 
     let mut works = client.deep_page("Machine Learning").into_work_iter();
@@ -197,8 +203,8 @@ Iterate over all the pages (`WorkList`) of the funder with id `funder id` by usi
 A single `WorkList` usually holds 20 `Work` items.
 
 ```rust
-use crossref_rs::{AsyncIterator, Crossref, Funders, WorksQuery, Work, WorkList};
-async fn run() -> Result<(), crossref_rs::Error> {
+use crossref_client::{AsyncIterator, Crossref, Funders, WorksQuery, Work, WorkList};
+async fn run() -> Result<(), crossref_client::Error> {
     let client = Crossref::builder().build()?;
 
     let mut pages = client.deep_page(
@@ -216,8 +222,8 @@ async fn run() -> Result<(), crossref_rs::Error> {
 Iterate over all `Work` items of a specfic funder directly.
 
 ```rust
-use crossref_rs::{AsyncIterator, Crossref, Funders, WorksQuery, Work, WorkList};
-async fn run() -> Result<(), crossref_rs::Error> {
+use crossref_client::{AsyncIterator, Crossref, Funders, WorksQuery, Work, WorkList};
+async fn run() -> Result<(), crossref_client::Error> {
     let client = Crossref::builder().build()?;
 
     let mut works = client.deep_page(
@@ -237,7 +243,7 @@ async fn run() -> Result<(), crossref_rs::Error> {
 
 ### Installation
 ```shell
-cargo install crossref-rs --features cli
+cargo install crossref-client --features cli
 ```
 
 ### Usage

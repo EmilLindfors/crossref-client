@@ -1,7 +1,9 @@
-//! This crate provides a client for interacting with the crossref-api
+//! An async client for the [Crossref REST API](https://api.crossref.org/swagger-ui/index.html).
 //!
-//! [Crossref API docs](https://github.com/CrossRef/rest-api-doc)
-//! `Crossref` - Crossref search API. The `Crossref` crate provides methods matching Crossref API routes:
+//! `crossref-client` is a hard fork of [`crossref-rs`](https://github.com/MattsSe/crossref-rs)
+//! and has diverged substantially from it; changes are not upstreamed.
+//!
+//! The [`Crossref`] client provides methods matching the Crossref API routes:
 
 //! * `works` - `/works` route
 //! * `members` - `/members` route
@@ -16,8 +18,8 @@
 //! ### Create a `Crossref` client:
 
 //! ```no_run
-//! # use crossref_rs::Crossref;
-//! # async fn run() -> Result<(), crossref_rs::Error> {
+//! # use crossref_client::Crossref;
+//! # async fn run() -> Result<(), crossref_client::Error> {
 //! let client = Crossref::builder().build()?;
 //! # Ok(())
 //! # }
@@ -26,8 +28,8 @@
 //! If you have an [Authorization token for Crossref's Plus service](https://github.com/CrossRef/rest-api-doc#authorization-token-for-plus-service):
 //!
 //! ```no_run
-//! # use crossref_rs::Crossref;
-//! # async fn run() -> Result<(), crossref_rs::Error> {
+//! # use crossref_client::Crossref;
+//! # async fn run() -> Result<(), crossref_client::Error> {
 //! let client = Crossref::builder()
 //! .token("token")
 //! .build()?;
@@ -42,8 +44,8 @@
 //! To get into Crossref's polite pool include a email address
 //!
 //! ```no_run
-//! # use crossref_rs::Crossref;
-//! # async fn run() -> Result<(), crossref_rs::Error> {
+//! # use crossref_client::Crossref;
+//! # async fn run() -> Result<(), crossref_client::Error> {
 //! let client = Crossref::builder()
 //!     .polite("polite@example.com")
 //!     .token("your token")
@@ -59,8 +61,8 @@
 //! Otherwise creating queries works the same for all resource components:
 //!
 //! ```no_run
-//! # use crossref_rs::*;
-//! # async fn run() -> crossref_rs::Result<()> {
+//! # use crossref_client::*;
+//! # async fn run() -> crossref_client::Result<()> {
 //! let query = WorksQuery::new("Machine Learning")
 //! // field queries supported for `Works`
 //! .field_query(FieldQuery::author("Some Author"))
@@ -86,7 +88,7 @@
 //! This resembles in the enums of the resource components, eg. for `Members`:
 //!
 //! ```no_run
-//! # use crossref_rs::query::*;
+//! # use crossref_client::query::*;
 //! pub enum Members {
 //!     /// target a specific member at `/members/{id}`
 //!     Identifier(String),
@@ -104,8 +106,8 @@
 //! Analogous methods exist for all resource components
 //!
 //! ```no_run
-//! # use crossref_rs::*;
-//! # async fn run() -> crossref_rs::Result<()> {
+//! # use crossref_client::*;
+//! # async fn run() -> crossref_client::Result<()> {
 //! # let client = Crossref::builder().build()?;
 //! let work = client.work("10.1037/0003-066X.59.1.29").await?;
 //!
@@ -121,8 +123,8 @@
 //! **Query**
 //!
 //! ```no_run
-//! # use crossref_rs::*;
-//! # async fn run() -> crossref_rs::Result<()> {
+//! # use crossref_client::*;
+//! # async fn run() -> crossref_client::Result<()> {
 //! # let client = Crossref::builder().build()?;
 //! let query = WorksQuery::new("Machine Learning");
 //!
@@ -135,8 +137,8 @@
 //! Alternatively insert a free form query term directly
 //!
 //! ```no_run
-//! # use crossref_rs::*;
-//! # async fn run() -> crossref_rs::Result<()> {
+//! # use crossref_client::*;
+//! # async fn run() -> crossref_client::Result<()> {
 //! # let client = Crossref::builder().build()?;
 //!
 //! // one page of the matching results
@@ -150,8 +152,8 @@
 //! For each resource component other than `Works` there exist methods to append a `WorksQuery` with the ID option `/members/{member_id}/works?<query>?`
 //!
 //! ```no_run
-//! # use crossref_rs::*;
-//! # async fn run() -> crossref_rs::Result<()> {
+//! # use crossref_client::*;
+//! # async fn run() -> crossref_client::Result<()> {
 //! # let client = Crossref::builder().build()?;
 //! let works = client.member_works( WorksQuery::new("machine learning")
 //! .sort(Sort::Score).into_ident("member_id")).await?;
@@ -162,8 +164,8 @@
 //! This would be the same as using the [`Crossref::works`] method by supplying the combined type
 //!
 //! ```no_run
-//! # use crossref_rs::*;
-//! # async fn run() -> crossref_rs::Result<()> {
+//! # use crossref_client::*;
+//! # async fn run() -> crossref_client::Result<()> {
 //! # let client = Crossref::builder().build()?;
 //! let works = client.works(WorksQuery::new("machine learning")
 //!     .sort(Sort::Score)
@@ -183,8 +185,8 @@
 //! Iterate over all `Works` linked to search term `Machine Learning`
 //!
 //! ```no_run
-//! use crossref_rs::{AsyncIterator, Crossref, WorksQuery, Work};
-//! # async fn run() -> Result<(), crossref_rs::Error> {
+//! use crossref_client::{AsyncIterator, Crossref, WorksQuery, Work};
+//! # async fn run() -> Result<(), crossref_client::Error> {
 //! let client = Crossref::builder().build()?;
 //!
 //! let mut pages = client.deep_page(WorksQuery::new("Machine Learning"));
@@ -200,8 +202,8 @@
 //! Which can be simplified to
 //!
 //! ```no_run
-//! use crossref_rs::{AsyncIterator, Crossref, WorksQuery, Work};
-//! # async fn run() -> Result<(), crossref_rs::Error> {
+//! use crossref_client::{AsyncIterator, Crossref, WorksQuery, Work};
+//! # async fn run() -> Result<(), crossref_client::Error> {
 //! let client = Crossref::builder().build()?;
 //!
 //! let mut works = client.deep_page("Machine Learning").into_work_iter();
@@ -221,8 +223,8 @@
 //! A single `WorkList` usually holds 20 `Work` items.
 //!
 //! ```no_run
-//! use crossref_rs::{AsyncIterator, Crossref, Funders, WorksQuery, Work, WorkList};
-//! # async fn run() -> Result<(), crossref_rs::Error> {
+//! use crossref_client::{AsyncIterator, Crossref, Funders, WorksQuery, Work, WorkList};
+//! # async fn run() -> Result<(), crossref_client::Error> {
 //! let client = Crossref::builder().build()?;
 //!
 //! let mut pages = client.deep_page(WorksQuery::default().into_combined_query::<Funders>("funder id"));
@@ -239,8 +241,8 @@
 //! Iterate over all `Work` items of a specfic funder directly.
 //!
 //! ```no_run
-//! use crossref_rs::{AsyncIterator, Crossref, Funders, WorksQuery, Work, WorkList};
-//! # async fn run() -> Result<(), crossref_rs::Error> {
+//! use crossref_client::{AsyncIterator, Crossref, Funders, WorksQuery, Work, WorkList};
+//! # async fn run() -> Result<(), crossref_client::Error> {
 //! let client = Crossref::builder().build()?;
 //!
 //! let mut works = client.deep_page(WorksQuery::default()
@@ -407,15 +409,15 @@ impl Crossref {
     /// # Example
     ///
     /// ```no_run
-    /// use crossref_rs::{Crossref, WorksQuery, WorksFilter, FieldQuery};
-    /// # async fn run() -> Result<(), crossref_rs::Error> {
+    /// use crossref_client::{Crossref, WorksQuery, WorksFilter, FieldQuery};
+    /// # async fn run() -> Result<(), crossref_client::Error> {
     /// let client = Crossref::builder().build()?;
     ///
     /// let query = WorksQuery::new("Machine Learning")
     ///     .filter(WorksFilter::HasOrcid)
-    ///     .order(crossref_rs::Order::Asc)
+    ///     .order(crossref_client::Order::Asc)
     ///     .field_query(FieldQuery::author("Some Author"))
-    ///     .sort(crossref_rs::Sort::Score);
+    ///     .sort(crossref_client::Sort::Score);
     ///
     /// let works = client.works(query).await?;
     ///
@@ -456,8 +458,8 @@ impl Crossref {
     /// Iterate over all `Works` linked to search term `Machine Learning`
     ///
     /// ```no_run
-    /// use crossref_rs::{AsyncIterator, Crossref, WorksQuery, Work};
-    /// # async fn run() -> Result<(), crossref_rs::Error> {
+    /// use crossref_client::{AsyncIterator, Crossref, WorksQuery, Work};
+    /// # async fn run() -> Result<(), crossref_client::Error> {
     /// let client = Crossref::builder().build()?;
     ///
     /// let mut pages = client.deep_page(WorksQuery::new("Machine Learning"));
@@ -476,8 +478,8 @@ impl Crossref {
     /// A single `WorkList` usually holds 20 `Work` items.
     ///
     /// ```no_run
-    /// use crossref_rs::{AsyncIterator, Crossref, Funders, WorksQuery, Work, WorkList};
-    /// # async fn run() -> Result<(), crossref_rs::Error> {
+    /// use crossref_client::{AsyncIterator, Crossref, Funders, WorksQuery, Work, WorkList};
+    /// # async fn run() -> Result<(), crossref_client::Error> {
     /// let client = Crossref::builder().build()?;
     ///
     /// let mut pages = client.deep_page(WorksQuery::default().into_combined_query::<Funders>("funder id"));
@@ -494,8 +496,8 @@ impl Crossref {
     /// Iterate over all `Work` items of a specfic funder directly.
     ///
     /// ```no_run
-    /// use crossref_rs::{AsyncIterator, Crossref, Funders, WorksQuery, Work, WorkList};
-    /// # async fn run() -> Result<(), crossref_rs::Error> {
+    /// use crossref_client::{AsyncIterator, Crossref, Funders, WorksQuery, Work, WorkList};
+    /// # async fn run() -> Result<(), crossref_client::Error> {
     /// let client = Crossref::builder().build()?;
     ///
     /// let mut works = client.deep_page(WorksQuery::default()
@@ -515,8 +517,8 @@ impl Crossref {
     /// Alternatively deep page without an iterator by handling the cursor directly
     ///
     /// ```no_run
-    /// use crossref_rs::{Crossref, WorksQuery, WorksFilter};
-    /// # async fn run() -> Result<(), crossref_rs::Error> {
+    /// use crossref_client::{Crossref, WorksQuery, WorksFilter};
+    /// # async fn run() -> Result<(), crossref_client::Error> {
     /// let client = Crossref::builder().build()?;
     ///
     /// // request a next-cursor first
@@ -626,8 +628,8 @@ impl Crossref {
     /// # Example
     ///
     /// ```no_run
-    /// use crossref_rs::Crossref;
-    /// # async fn run() -> Result<(), crossref_rs::Error> {
+    /// use crossref_client::Crossref;
+    /// # async fn run() -> Result<(), crossref_client::Error> {
     /// # let client = Crossref::builder().build()?;
     /// // this will return 10 random dois from the crossref api
     /// let random_dois = client.random_dois(10).await?;
@@ -646,8 +648,8 @@ impl Crossref {
 /// # Example
 ///
 /// ```no_run
-/// use crossref_rs::Crossref;
-/// # async fn run() -> Result<(), crossref_rs::Error> {
+/// use crossref_client::Crossref;
+/// # async fn run() -> Result<(), crossref_client::Error> {
 ///
 /// let client = Crossref::builder()
 ///     .polite("polite@example.com")
@@ -683,7 +685,7 @@ impl CrossrefBuilder {
     /// [polite pool](https://api.crossref.org/swagger-ui/index.html#/Etiquette).
     ///
     /// Sends a `User-Agent` in the shape crossref asks for, e.g.
-    /// `crossref-rs/0.2.0 (mailto:you@example.com)`. Anonymous requests share a
+    /// `crossref-client/0.2.0 (mailto:you@example.com)`. Anonymous requests share a
     /// rate-limited pool and are the usual cause of `429` responses.
     ///
     /// Use [`CrossrefBuilder::user_agent`] instead if you want to send your own

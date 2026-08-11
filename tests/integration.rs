@@ -1,8 +1,8 @@
 #[cfg(test)]
 mod tests {
-    use crossref_rs::query::journals::JournalResultControl;
-    use crossref_rs::query::ResultControl;
-    use crossref_rs::{
+    use crossref_client::query::journals::JournalResultControl;
+    use crossref_client::query::ResultControl;
+    use crossref_client::{
         Crossref, CrossrefBuilder, FieldQuery, Type, WorkResultControl, WorksFilter,
         WorksIdentQuery, WorksQuery,
     };
@@ -93,8 +93,8 @@ mod tests {
                 query: WorksQuery::empty()
                     //.field_query(FieldQuery::container_title("Economic Geography"))
                     .filter(WorksFilter::Type(Type::JournalArticle))
-                    .sort(crossref_rs::Sort::Created)
-                    .order(crossref_rs::Order::Desc)
+                    .sort(crossref_client::Sort::Created)
+                    .order(crossref_client::Order::Desc)
                     .result_control(WorkResultControl::Standard(ResultControl::RowsOffset { rows: 10, offset: 20 })),
                         
             })

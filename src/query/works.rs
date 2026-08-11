@@ -569,7 +569,7 @@ impl CrossrefQueryParam for WorkResultControl {
 /// # Example
 ///
 /// ```no_run
-/// use crossref_rs::Works;
+/// use crossref_client::Works;
 ///
 /// let works = Works::doi("10.1037/0003-066X.59.1.29");
 /// ```
@@ -579,7 +579,7 @@ impl CrossrefQueryParam for WorkResultControl {
 /// # Example
 ///
 /// ```no_run
-/// use crossref_rs::Works;
+/// use crossref_client::Works;
 ///
 /// let works = Works::agency_for_doi("10.1037/0003-066X.59.1.29");
 /// ```
@@ -704,7 +704,7 @@ impl CrossrefQuery for WorkListQuery {
 /// # Example
 ///
 /// ```no_run
-/// use crossref_rs::{WorksIdentQuery, WorksQuery};
+/// use crossref_client::{WorksIdentQuery, WorksQuery};
 ///
 /// let combined = WorksIdentQuery::new("100000015", WorksQuery::new("ontologies"));
 ///
@@ -712,7 +712,7 @@ impl CrossrefQuery for WorkListQuery {
 /// Is equal to create a `WorksIdentQuery` from a `WorksQuery`
 ///
 /// ```no_run
-/// use crossref_rs::WorksQuery;
+/// use crossref_client::WorksQuery;
 ///
 /// let combined = WorksQuery::new("ontologies").into_ident("100000015");
 ///
@@ -815,7 +815,7 @@ impl WorksQuery {
     /// # Example
     ///
     /// ```no_run
-    /// use crossref_rs::WorksQuery;
+    /// use crossref_client::WorksQuery;
     ///
     /// let query = WorksQuery::default().queries(&["renear", "ontologies"]);
     /// ```
@@ -839,7 +839,7 @@ impl WorksQuery {
         }
 
     /// ```no_run
-    /// use crossref_rs::{FieldQuery,WorksQuery};
+    /// use crossref_client::{FieldQuery,WorksQuery};
     ///
     /// let query = WorksQuery::default().field_queries(vec![FieldQuery::title("room at the bottom"), FieldQuery::author("richard feynman")]);
     /// ```
@@ -903,7 +903,7 @@ impl WorksQuery {
     /// Create a Funders Query that targets all works of a funder with id `funder id`.
     ///
     /// ```no_run
-    /// # use crossref_rs::{WorksQuery, Funders};
+    /// # use crossref_client::{WorksQuery, Funders};
     /// let funders: Funders = WorksQuery::default().into_combined("funder id");
     /// ```
     pub fn into_combined<W: WorksCombiner>(self, id: &str) -> W {
@@ -923,7 +923,7 @@ impl WorksQuery {
     /// Create a query that targets all `Works` of a funder with id `funder id`
     ///
     /// ```no_run
-    /// # use crossref_rs::{WorksQuery, Funders};
+    /// # use crossref_client::{WorksQuery, Funders};
     /// let query = WorksQuery::default()
     ///     .into_combined_query::<Funders>("funder id");
     ///
@@ -938,7 +938,7 @@ impl WorksQuery {
 /// # Example
 ///
 /// ```no_run
-/// use crossref_rs::{Order, WorksQuery};
+/// use crossref_client::{Order, WorksQuery};
 ///
 /// // create a new query for topcis machine+learning ordered desc
 /// let query = WorksQuery::new("machine learning").order(Order::Desc);

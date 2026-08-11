@@ -1,5 +1,5 @@
 use clap::{Args, Parser, Subcommand};
-use crossref_rs::{
+use crossref_client::{
     AsyncIterator, Crossref, FundersQuery, MembersQuery, Order, ResultControl, Sort, Type,
     JournalResultControl, WorkResultControl, WorksQuery,
 };
@@ -120,7 +120,7 @@ struct ClientOpts {
 }
 
 impl ClientOpts {
-    fn create_client(&self) -> crossref_rs::Result<Crossref> {
+    fn create_client(&self) -> crossref_client::Result<Crossref> {
         let mut builder = Crossref::builder();
 
         if let Some(agent) = &self.user_agent {
@@ -203,7 +203,7 @@ impl Command {
         }
     }
 
-    async fn run<W: Write>(&self, writer: W, client: &Crossref) -> crossref_rs::Result<()> {
+    async fn run<W: Write>(&self, writer: W, client: &Crossref) -> crossref_client::Result<()> {
         match self {
             Command::Types { id, .. } => match id {
                 Some(id) => serde_json::to_writer_pretty(writer, &client.type_(id).await?)?,
@@ -261,19 +261,19 @@ impl Command {
 
                 let query = match combined {
                     Some(Combined::Journal { id }) => {
-                        query.into_combined_query::<crossref_rs::Journals>(id)
+                        query.into_combined_query::<crossref_client::Journals>(id)
                     }
                     Some(Combined::Type { id }) => {
-                        query.into_combined_query::<crossref_rs::Types>(id)
+                        query.into_combined_query::<crossref_client::Types>(id)
                     }
                     Some(Combined::Funder { id }) => {
-                        query.into_combined_query::<crossref_rs::Funders>(id)
+                        query.into_combined_query::<crossref_client::Funders>(id)
                     }
                     Some(Combined::Member { id }) => {
-                        query.into_combined_query::<crossref_rs::Members>(id)
+                        query.into_combined_query::<crossref_client::Members>(id)
                     }
                     Some(Combined::Prefix { id }) => {
-                        query.into_combined_query::<crossref_rs::Prefixes>(id)
+                        query.into_combined_query::<crossref_client::Prefixes>(id)
                     }
                     None => query.into(),
                 };
