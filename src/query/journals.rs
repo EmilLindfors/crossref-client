@@ -4,7 +4,7 @@ use crate::query::works::{WorksCombiner, WorksIdentQuery};
 use crate::query::{Component, CrossrefQuery, CrossrefQueryParam, CrossrefRoute, ResourceComponent, ResultControl, format_queries};
 use std::borrow::Cow;
 
-impl_terms_query!(
+impl_list_query!(
     /// Used to construct a query that targets crossref `Journal` elements
     ///
     /// # Example

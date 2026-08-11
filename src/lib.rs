@@ -296,9 +296,11 @@ pub use self::query::works::{
 #[doc(inline)]
 pub use self::query::{Component, CrossrefQuery, CrossrefRoute, Order, ResultControl, Sort};
 pub use self::query::facet::{Facet, FacetCount};
+pub use self::query::funders::{Funders, FundersFilter, FundersQuery};
+pub use self::query::members::{Members, MembersFilter, MembersQuery};
 pub use self::query::{
-    Funders, FundersQuery, Journals, JournalsQuery, Licenses, LicensesQuery, Members, MembersQuery,
-    Prefixes, Type, Types, WorksComponent,
+    Journals, JournalsQuery, Licenses, LicensesQuery, Prefixes, Type, Types, Visibility,
+    WorksComponent,
 };
 pub use self::response::{
     CrossrefType, Failure, Failures, Funder, FunderList, Journal, JournalList, LicenseCount,

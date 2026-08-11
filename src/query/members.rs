@@ -21,7 +21,24 @@ values {
 }
 }
 
-impl_common_query!(MembersQuery, MembersFilter);
+impl_list_query!(
+    /// Used to construct a query that targets crossref `Member` elements
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use crossref_client::{MembersFilter, MembersQuery, ResultControl};
+    ///
+    /// let query = MembersQuery::new("Elsevier")
+    ///     .filter(MembersFilter::CurrentDoiCount(1000))
+    ///     .result_control(ResultControl::Rows(10));
+    /// ```
+    ///
+    /// The route takes terms, filters and paging. It used to also offer
+    /// `sort`, `order` and `facet`, which crossref answers with a `400`.
+    MembersQuery,
+    filter = MembersFilter
+);
 
 /// constructs the request payload for the `/members` route
 #[derive(Debug, Clone)]
@@ -50,5 +67,22 @@ impl CrossrefRoute for Members {
 impl CrossrefQuery for Members {
     fn resource_component(self) -> ResourceComponent {
         ResourceComponent::Members(self)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn filters_share_one_comma_separated_parameter() {
+        let query = MembersQuery::empty()
+            .filter(MembersFilter::Prefix("10.1016".to_string()))
+            .filter(MembersFilter::CurrentDoiCount(1_000));
+
+        assert_eq!(
+            "/members?filter=prefix:10.1016,current-doi-count:1000",
+            &Members::Query(query).route().unwrap()
+        );
     }
 }

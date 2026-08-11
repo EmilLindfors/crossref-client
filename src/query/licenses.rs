@@ -6,7 +6,7 @@ use crate::query::{
 };
 use std::borrow::Cow;
 
-impl_terms_query!(
+impl_list_query!(
     /// Used to construct a query that targets the licenses crossref works are
     /// published under
     ///

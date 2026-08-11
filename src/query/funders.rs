@@ -1,5 +1,4 @@
 use crate::error::Result;
-use crate::query::facet::FacetCount;
 use crate::query::works::{WorksCombiner, WorksIdentQuery};
 use crate::query::*;
 use std::borrow::Cow;
@@ -17,7 +16,24 @@ values {
 }
 }
 
-impl_common_query!(FundersQuery, FundersFilter);
+impl_list_query!(
+    /// Used to construct a query that targets crossref `Funder` elements
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use crossref_client::{FundersFilter, FundersQuery, ResultControl};
+    ///
+    /// let query = FundersQuery::new("NSF")
+    ///     .filter(FundersFilter::Location("Norway".to_string()))
+    ///     .result_control(ResultControl::Rows(10));
+    /// ```
+    ///
+    /// The route takes terms, one filter and paging. It used to also offer
+    /// `sort`, `order` and `facet`, which crossref answers with a `400`.
+    FundersQuery,
+    filter = FundersFilter
+);
 
 /// constructs the request payload for the `/funders` route
 #[derive(Debug, Clone)]
@@ -46,5 +62,30 @@ impl CrossrefRoute for Funders {
 impl CrossrefQuery for Funders {
     fn resource_component(self) -> ResourceComponent {
         ResourceComponent::Funders(self)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn terms_filter_and_paging_render_as_separate_parameters() {
+        let query = FundersQuery::new("NSF")
+            .filter(FundersFilter::Location("Norway".to_string()))
+            .result_control(ResultControl::Rows(10));
+
+        assert_eq!(
+            "/funders?query=NSF&filter=location:Norway&rows=10",
+            &Funders::Query(query).route().unwrap()
+        );
+    }
+
+    #[test]
+    fn an_empty_query_targets_the_bare_route() {
+        assert_eq!(
+            "/funders",
+            &Funders::Query(FundersQuery::empty()).route().unwrap()
+        );
     }
 }

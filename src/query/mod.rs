@@ -1,5 +1,4 @@
 use crate::error::Result;
-use crate::query::facet::FacetCount;
 pub use crate::query::funders::{Funders, FundersQuery};
 pub use crate::query::journals::{Journals, JournalsQuery};
 pub use crate::query::licenses::{Licenses, LicensesQuery};
@@ -13,158 +12,6 @@ use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
 use std::fmt;
 use std::str::FromStr;
-
-/// Helper trait for unified interface
-pub trait CrossrefParams {
-    /// the filter applied
-    type Filter: Filter;
-    /// all string queries
-    fn query_terms(&self) -> &[String];
-    /// the filters this object can use
-    fn filters(&self) -> &[Self::Filter];
-    /// the sort if set
-    fn sort(&self) -> Option<&Sort>;
-    /// the order if set
-    fn order(&self) -> Option<&Order>;
-    /// all facets this objects addresses
-    fn facets(&self) -> &[FacetCount];
-    /// the configured result control, if any
-    fn result_control(&self) -> Option<&ResultControl>;
-}
-
-macro_rules! impl_common_query {
-    ($i:ident, $filter:ident) => {
-        /// Each query parameter is ANDed
-        #[derive(Debug, Clone, Default)]
-        pub struct $i {
-            /// search by non specific query
-            pub queries: Vec<String>,
-            /// filter to apply while querying
-            pub filter: Vec<$filter>,
-            /// sort results by a certain field and
-            pub sort: Option<Sort>,
-            /// set the sort order to `asc` or `desc`
-            pub order: Option<Order>,
-            /// enable facet information in responses
-            pub facets: Vec<FacetCount>,
-            /// deep page through `/works` result sets
-            pub result_control: Option<ResultControl>,
-        }
-
-        impl $i {
-            /// alias for creating an empty default element
-            pub fn empty() -> Self {
-                $i::default()
-            }
-
-            /// Convenience method to create a new query with a term directly
-            pub fn new<T: ToString>(query: T) -> Self {
-                Self::empty().query(query)
-            }
-
-            /// add a new free form query
-            pub fn query<T: ToString>(mut self, query: T) -> Self {
-                self.queries.push(query.to_string());
-                self
-            }
-
-            /// add a new filter to the query
-            pub fn filter(mut self, filter: $filter) -> Self {
-                self.filter.push(filter);
-                self
-            }
-
-            /// Sort the results by a field, or by relevance if given [`None`].
-            pub fn sort(mut self, sort: impl Into<Option<Sort>>) -> Self {
-                self.sort = sort.into();
-                self
-            }
-
-            /// set order to asc
-            pub fn order_asc(mut self) -> Self {
-                self.order = Some(Order::Asc);
-                self
-            }
-            /// set order to desc
-            pub fn order_desc(mut self) -> Self {
-                self.order = Some(Order::Desc);
-                self
-            }
-
-            /// Order the results, or leave the order to crossref if given [`None`].
-            pub fn order(mut self, order: impl Into<Option<Order>>) -> Self {
-                self.order = order.into();
-                self
-            }
-
-            /// add another facet to query
-            pub fn facet(mut self, facet: FacetCount) -> Self {
-                self.facets.push(facet);
-                self
-            }
-
-            /// Limit the results, or take crossref's default page if given [`None`].
-            pub fn result_control(
-                mut self,
-                result_control: impl Into<Option<ResultControl>>,
-            ) -> Self {
-                self.result_control = result_control.into();
-                self
-            }
-        }
-
-        impl CrossrefParams for $i {
-            type Filter = $filter;
-
-            fn query_terms(&self) -> &[String] {
-                &self.queries
-            }
-            fn filters(&self) -> &[Self::Filter] {
-                &self.filter
-            }
-            fn sort(&self) -> Option<&Sort> {
-                self.sort.as_ref()
-            }
-            fn order(&self) -> Option<&Order> {
-                self.order.as_ref()
-            }
-            fn facets(&self) -> &[FacetCount] {
-                &self.facets
-            }
-            fn result_control(&self) -> Option<&ResultControl> {
-                self.result_control.as_ref()
-            }
-        }
-
-        impl CrossrefRoute for $i {
-            fn route(&self) -> Result<String> {
-                let mut params: Vec<(Cow<'_, str>, Cow<'_, str>)> = Vec::new();
-                if !self.queries.is_empty() {
-                    params.push((
-                        Cow::Borrowed("query"),
-                        Cow::Owned(format_queries(&self.queries)),
-                    ));
-                }
-                if !self.filter.is_empty() {
-                    params.extend(self.filter.params());
-                }
-                if !self.facets.is_empty() {
-                    params.extend(self.facets.params());
-                }
-                if let Some(sort) = &self.sort {
-                    params.extend(sort.params());
-                }
-                if let Some(order) = &self.order {
-                    params.extend(order.params());
-                }
-                if let Some(rc) = &self.result_control {
-                    params.extend(rc.params());
-                }
-                Ok(encode::query_string(&params))
-            }
-        }
-    };
-}
 
 /// How a filter's payload renders inside a `filter` fragment.
 ///
@@ -298,16 +145,24 @@ macro_rules! define_filter {
     };
 }
 
-/// Defines a query for a route that takes free form terms and paging and
-/// nothing else -- `/journals` and `/licenses` both reject `filter`, `sort`,
-/// `order`, `facet`, `select` and `sample` with a `400`.
-macro_rules! impl_terms_query {
-    ($(#[$meta:meta])* $name:ident) => {
+/// Defines a query for a list route that takes free form terms, paging, and
+/// optionally a filter -- and nothing else.
+///
+/// `/works` is the only route with `sort`, `order`, `facet`, `select` and
+/// `sample`; `/funders`, `/members`, `/journals` and `/licenses` all answer
+/// those with a `400`, and only the first two take a `filter` on top of terms
+/// and paging.
+macro_rules! impl_list_query {
+    ($(#[$meta:meta])* $name:ident $(, filter = $filter:ident)?) => {
         $(#[$meta])*
         #[derive(Debug, Clone, Default, PartialEq, Eq)]
         pub struct $name {
             /// search by non specific query
             pub queries: Vec<String>,
+            $(
+                /// filter to apply while querying
+                pub filter: Vec<$filter>,
+            )?
             /// limit the returned items and set an offset
             ///
             /// Only `rows` and `offset` are supported by this route;
@@ -316,6 +171,13 @@ macro_rules! impl_terms_query {
         }
 
         impl $name {
+            $(
+                /// add a new filter to the query
+                pub fn filter(mut self, filter: $filter) -> Self {
+                    self.filter.push(filter);
+                    self
+                }
+            )?
             /// alias for creating an empty default element
             pub fn empty() -> Self {
                 Self::default()
@@ -357,6 +219,12 @@ macro_rules! impl_terms_query {
                         Cow::Owned(format_queries(&self.queries)),
                     ));
                 }
+                $(
+                    let filters: &[$filter] = &self.filter;
+                    if !filters.is_empty() {
+                        params.extend(self.filter.params());
+                    }
+                )?
                 if let Some(rc) = &self.result_control {
                     params.extend(rc.params());
                 }
