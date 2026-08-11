@@ -36,9 +36,13 @@ jobs:
         env:
           RUSTDOCFLAGS: -D warnings
 
-      # everything except tests/integration.rs, which needs the network
+      # everything except tests/integration.rs, which needs the network.
+      # `--doc` cannot share a command with another target selector.
       - name: Test (offline)
-        run: cargo test --all-features --lib --bins --doc --test routes --test work_shapes
+        run: cargo test --all-features --lib --bins --test routes --test work_shapes
+
+      - name: Test (doc)
+        run: cargo test --all-features --doc
 
   live:
     name: Test against the live api

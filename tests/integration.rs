@@ -22,7 +22,12 @@ use tokio::runtime::Runtime;
 /// suite uses the anonymous pool, which is rate-limited harder but works; the
 /// client paces itself against whichever budget it is granted.
 fn contact_email() -> Option<String> {
-    std::env::var("CROSSREF_MAILTO").ok()
+    // an unset repository secret still reaches the job as an empty variable,
+    // which would put a `mailto:` with nothing after it in the user agent and
+    // then hold the run to the polite pool it cannot have earned
+    std::env::var("CROSSREF_MAILTO")
+        .ok()
+        .filter(|email| !email.trim().is_empty())
 }
 
 /// Runs `test` against the shared client.
