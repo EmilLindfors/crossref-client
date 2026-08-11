@@ -73,10 +73,14 @@ jobs:
       - name: Build
         run: cargo build --release --features cli --target ${{ matrix.target }}
 
+      # the version is deliberately not in the name: it is what lets
+      # `/releases/latest/download/crossref-<target>.tar.gz` resolve to
+      # whatever the newest release is, so a README command never goes stale.
+      # Which version it holds is `crossref --version`.
       - name: Package
         shell: bash
         run: |
-          staging="crossref-$GITHUB_REF_NAME-${{ matrix.target }}"
+          staging="crossref-${{ matrix.target }}"
           mkdir "$staging"
           cp README.md LICENSE-MIT LICENSE-APACHE "$staging/"
 

@@ -44,19 +44,17 @@ cargo add crossref-client
 ### As a command line tool
 
 Every release carries a prebuilt `crossref` binary, so this needs no rust
-toolchain. Each archive holds the binary and the two licences; set `version`
-to the [latest release](https://github.com/EmilLindfors/crossref-client/releases/latest)
-and `target` to your platform.
+toolchain. Each archive holds the binary and the two licences, and is named
+after the platform alone, so these commands always fetch the newest release.
 
 **Linux and macOS**
 
 ```shell
-version=v0.2.0
 # x86_64-unknown-linux-gnu | aarch64-apple-darwin (apple silicon) | x86_64-apple-darwin (intel)
 target=x86_64-unknown-linux-gnu
 
-curl -fsSL "https://github.com/EmilLindfors/crossref-client/releases/download/$version/crossref-$version-$target.tar.gz" | tar xz
-sudo install "crossref-$version-$target/crossref" /usr/local/bin/
+curl -fsSL "https://github.com/EmilLindfors/crossref-client/releases/latest/download/crossref-$target.tar.gz" | tar xz
+sudo install "crossref-$target/crossref" /usr/local/bin/
 ```
 
 The binary is unsigned. Downloaded with `curl` it runs as it is; downloaded
@@ -66,12 +64,11 @@ through a browser, macOS quarantines it until
 **Windows** (PowerShell)
 
 ```powershell
-$version = "v0.2.0"
 $target = "x86_64-pc-windows-msvc"
 
-Invoke-WebRequest "https://github.com/EmilLindfors/crossref-client/releases/download/$version/crossref-$version-$target.zip" -OutFile crossref.zip
+Invoke-WebRequest "https://github.com/EmilLindfors/crossref-client/releases/latest/download/crossref-$target.zip" -OutFile crossref.zip
 Expand-Archive crossref.zip -DestinationPath .
-# then move crossref-$version-$target\crossref.exe somewhere on your PATH
+# then move crossref-$target\crossref.exe somewhere on your PATH
 ```
 
 **From source**, which needs rust 1.85 or newer:
@@ -80,8 +77,8 @@ Expand-Archive crossref.zip -DestinationPath .
 cargo install crossref-client --features cli
 ```
 
-Either way, check it with `crossref --version`. What the binary can do is
-under [Command Line Application](#command-line-application).
+Either way, `crossref --version` says which release you ended up with. What
+the binary can do is under [Command Line Application](#command-line-application).
 
 
 ## Usage
