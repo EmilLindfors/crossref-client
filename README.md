@@ -22,8 +22,15 @@ The `Crossref` client provides methods matching the Crossref API routes:
 * `prefixes` - `/prefixes` route
 * `funders` - `/funders` route
 * `journals` - `/journals` route
+* `licenses` - `/licenses` route
 * `types` - `/types` route
+* `styles` - `/styles` route, the CSL styles a citation can be rendered in
 * `agency` - `/works/{doi}/agency` get DOI minting agency
+* `transform` - `/works/{doi}/transform`, content negotiation
+
+The client paces itself against the rate limit crossref reports on every
+response and retries a `429`, so a `Crossref` -- and every clone of it, which
+shares the limiter -- stays inside the budget it was granted.
 
 
 ## Usage
@@ -46,9 +53,9 @@ Encouraged to use the **The Polite Pool**:
 
 [Good manners = more reliable service](https://github.com/CrossRef/rest-api-doc#good-manners--more-reliable-service)
 
-Anonymous clients share a pool limited to roughly one request per second and will
-start returning `429`. Passing an email moves you to the polite pool, which
-currently allows several requests per second. To get into it, include an email address
+Anonymous clients share a pool limited to one request per second and will start
+returning `429`. Passing an email moves you to the polite pool, which currently
+allows three per second. To get into it, include an email address
 
 ```rust
 let client = Crossref::builder()
@@ -73,6 +80,29 @@ let query = WorksQuery::new("Machine Learning")
     .order(Order::Asc)
     .sort(Sort::Score);
 ```
+
+Note that `sort`, `order`, `facet`, `select` and `sample` are `/works`-only:
+`/funders`, `/members`, `/journals` and `/licenses` answer them with a `400`,
+so `FundersQuery` and the rest offer terms, paging and -- where the route takes
+one -- a filter, and nothing that cannot be sent.
+
+### Other formats
+
+Crossref will re-serialize a registered work, so a DOI can be pulled out as
+BibTeX, RIS, RDF or a citation formatted in any of the ~2 900
+[CSL styles](https://citationstyles.org) without going through `Work`:
+
+```rust
+let bibtex = client.transform(doi, &CnFormat::BibTex).await?;
+let citation = client.transform(doi, &CnFormat::bibliography("apa")).await?;
+```
+
+### Examples
+
+* [`examples/peer_review.rs`](examples/peer_review.rs) reconstructs a paper's
+  open peer review history from the reviews crossref registers against it.
+* [`examples/check_pool.rs`](examples/check_pool.rs) reports which rate-limit
+  pool a client lands in.
 
 
 ### Get Records

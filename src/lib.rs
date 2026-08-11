@@ -262,10 +262,7 @@
 //! # }
 //! ```
 
-// TODO: 118 public items still lack doc comments; re-enable once documented.
-// #![warn(missing_docs)]
-
-
+#![warn(missing_docs)]
 
 mod error;
 /// client side rate limiting
@@ -293,11 +290,11 @@ pub use self::query::works::{
     WorksQuery,
 };
 
-#[doc(inline)]
-pub use self::query::{Component, CrossrefQuery, CrossrefRoute, Order, ResultControl, Sort};
 pub use self::query::facet::{Facet, FacetCount};
 pub use self::query::funders::{Funders, FundersFilter, FundersQuery};
 pub use self::query::members::{Members, MembersFilter, MembersQuery};
+#[doc(inline)]
+pub use self::query::{Component, CrossrefQuery, CrossrefRoute, Order, ResultControl, Sort};
 pub use self::query::{
     Journals, JournalsQuery, Licenses, LicensesQuery, Prefixes, Type, Types, Visibility,
     WorksComponent,

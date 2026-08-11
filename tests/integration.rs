@@ -156,7 +156,9 @@ fn selected_elements_narrow_the_response() {
 fn journals_can_be_found_by_title() {
     api_test(|client| async move {
         let journals = client
-            .journals(JournalsQuery::new("Economic Geography").result_control(ResultControl::Rows(10)))
+            .journals(
+                JournalsQuery::new("Economic Geography").result_control(ResultControl::Rows(10)),
+            )
             .await
             .expect("a journal list");
 
@@ -223,7 +225,10 @@ fn a_work_can_be_transformed_into_bibtex_and_a_formatted_citation() {
             .await
             .expect("bibtex");
         // returned verbatim, and crossref pads its bibtex with a leading space
-        assert!(bibtex.trim_start().starts_with("@article"), "not bibtex: {bibtex}");
+        assert!(
+            bibtex.trim_start().starts_with("@article"),
+            "not bibtex: {bibtex}"
+        );
 
         let citation = client
             .transform(doi, &CnFormat::bibliography("apa"))
@@ -296,9 +301,10 @@ fn a_rejected_request_reports_what_crossref_objected_to() {
         // crossref caps `rows` at 1000 and says so in a `validation-failure`
         // body, which used to be flattened into an opaque `400`
         let error = client
-            .works(WorksQuery::empty().result_control(WorkResultControl::Standard(
-                ResultControl::Rows(10_000),
-            )))
+            .works(
+                WorksQuery::empty()
+                    .result_control(WorkResultControl::Standard(ResultControl::Rows(10_000))),
+            )
             .await
             .expect_err("crossref rejects a 10 000 row page");
 
@@ -315,7 +321,10 @@ fn a_rejected_request_reports_what_crossref_objected_to() {
 #[test]
 fn the_reported_budget_and_pool_reach_the_client() {
     api_test(|client| async move {
-        client.works(WorksQuery::empty()).await.expect("a work list");
+        client
+            .works(WorksQuery::empty())
+            .await
+            .expect("a work list");
 
         let pool = client
             .api_pool()

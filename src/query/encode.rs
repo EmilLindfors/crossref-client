@@ -72,7 +72,10 @@ mod tests {
             "type:journal-article,has-orcid:true",
             &encode("type:journal-article,has-orcid:true")
         );
-        assert_eq!("10.1037/0003-066X.59.1.29", &encode("10.1037/0003-066X.59.1.29"));
+        assert_eq!(
+            "10.1037/0003-066X.59.1.29",
+            &encode("10.1037/0003-066X.59.1.29")
+        );
         assert_eq!("*", &encode("*"));
     }
 

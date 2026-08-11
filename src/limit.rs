@@ -3,9 +3,11 @@
 //! Crossref publishes the budget it grants a client on every response
 //! (`x-rate-limit-limit` and `x-rate-limit-interval`) and
 //! [expects clients to stay inside it](https://api.crossref.org/swagger-ui/index.html#/Etiquette);
-//! going over earns a `429`. [`Limiter`] spaces requests evenly across the
-//! reported interval and re-reads the budget from every response, so a client
-//! that moves between the anonymous and the polite pool adapts on its own.
+//! going over earns a `429`. A [`Crossref`](crate::Crossref) spaces its
+//! requests evenly across the reported interval and re-reads the budget from
+//! every response, so a client that moves between the anonymous and the polite
+//! pool adapts on its own; read back what it is working to with
+//! [`Crossref::rate_limit`](crate::Crossref::rate_limit).
 
 use reqwest::header::HeaderMap;
 use std::sync::{Mutex, MutexGuard, PoisonError};
@@ -252,7 +254,10 @@ mod tests {
         );
         assert_eq!(
             None,
-            retry_after(&headers(&[("retry-after", "Wed, 21 Oct 2015 07:28:00 GMT")]))
+            retry_after(&headers(&[(
+                "retry-after",
+                "Wed, 21 Oct 2015 07:28:00 GMT"
+            )]))
         );
     }
 

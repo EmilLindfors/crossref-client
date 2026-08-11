@@ -40,9 +40,11 @@ impl CrossrefRoute for Licenses {
     fn route(&self) -> Result<String> {
         match self {
             // `route` already carries its own `?` and is empty for an empty query
-            Licenses::Query(query) => {
-                Ok(format!("{}{}", Component::Licenses.route()?, query.route()?))
-            }
+            Licenses::Query(query) => Ok(format!(
+                "{}{}",
+                Component::Licenses.route()?,
+                query.route()?
+            )),
         }
     }
 }

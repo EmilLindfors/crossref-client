@@ -101,17 +101,27 @@ mod tests {
 
     #[test]
     fn no_two_formats_ask_for_the_same_thing() {
-        let mut accepts: Vec<_> = one_of_each().iter().map(|f| f.accept().to_string()).collect();
+        let mut accepts: Vec<_> = one_of_each()
+            .iter()
+            .map(|f| f.accept().to_string())
+            .collect();
         let total = accepts.len();
         accepts.sort();
         accepts.dedup();
 
-        assert_eq!(total, accepts.len(), "duplicate `Accept` values: {accepts:?}");
+        assert_eq!(
+            total,
+            accepts.len(),
+            "duplicate `Accept` values: {accepts:?}"
+        );
     }
 
     #[test]
     fn a_style_and_locale_become_accept_parameters() {
-        assert_eq!("text/x-bibliography; style=apa", CnFormat::bibliography("apa").accept());
+        assert_eq!(
+            "text/x-bibliography; style=apa",
+            CnFormat::bibliography("apa").accept()
+        );
 
         assert_eq!(
             "text/x-bibliography; style=apa; locale=de-DE",

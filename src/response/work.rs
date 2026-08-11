@@ -90,7 +90,6 @@ pub struct WorkList {
 /// with minor adjustments
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
-#[allow(missing_docs)]
 pub struct Work {
     /// Name of work's publisher
     ///
@@ -119,6 +118,7 @@ pub struct Work {
     pub is_referenced_by_count: Option<i32>,
     /// Currently always `Crossref`
     pub source: Option<String>,
+    /// which issue of the containing journal this work appeared in
     pub journal_issue: Option<Issue>,
     /// DOI prefix identifier of the form `http://id.crossref.org/prefix/DOI_PREFIX`
     pub prefix: Option<String>,
@@ -187,25 +187,37 @@ pub struct Work {
     /// Subject category names, a controlled vocabulary from Sci-Val.
     /// Available for most journal articles
     pub subject: Option<Vec<String>>,
+    /// ISSNs of the containing journal, print and electronic
     #[serde(rename = "ISSN")]
     pub issn: Option<Vec<String>>,
     /// List of ISSNs with ISSN type information
     pub issn_type: Option<Vec<ISSN>>,
+    /// ISBNs of the containing book
     #[serde(rename = "ISBN")]
     pub isbn: Option<Vec<String>>,
+    /// names of the archives that preserve this work
     pub archive: Option<Vec<String>>,
+    /// the licenses this work is published under
     pub license: Option<Vec<License>>,
+    /// the bodies that funded the work, and the awards they made
     pub funder: Option<Vec<FundingBody>>,
+    /// Crossmark assertions the publisher made about the work
     pub assertion: Option<Vec<Assertion>>,
+    /// the work's authors, in the order they were deposited
     pub author: Option<Vec<Contributor>>,
+    /// the editors of the containing work
     pub editor: Option<Vec<Contributor>>,
+    /// the chairs of the containing proceedings
     pub chair: Option<Vec<Contributor>>,
+    /// the work's translators
     pub translator: Option<Vec<Contributor>>,
+    /// works this one is an editorial update to, e.g. a retraction or correction
     pub update_to: Option<Vec<Update>>,
     /// Link to an update policy covering Crossmark updates for this work
     pub update_policy: Option<String>,
     /// URLs to full-text locations
     pub link: Option<Vec<ResourceLink>>,
+    /// the clinical trials the work reports on
     pub clinical_trial_number: Option<Vec<ClinicalTrialNumber>>,
     /// Other identifiers for the work provided by the depositing member
     pub alternative_id: Option<Vec<String>>,
@@ -281,8 +293,8 @@ impl DateParts {
     }
 }
 
+/// a body that funded the work, and the awards it made
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
-#[allow(missing_docs)]
 pub struct FundingBody {
     /// Funding body primary name
     ///
@@ -298,8 +310,8 @@ pub struct FundingBody {
     pub doi_asserted_by: Option<String>,
 }
 
+/// a clinical trial the work reports on
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
-#[allow(missing_docs)]
 pub struct ClinicalTrialNumber {
     /// Identifier of the clinical trial
     #[serde(rename = "clinical-trial-number")]
@@ -311,13 +323,21 @@ pub struct ClinicalTrialNumber {
     pub type_: Option<String>,
 }
 
+/// someone credited on the work: an author, editor, chair or translator
+///
+/// A contributor is either a person, with `family` and usually `given`, or an
+/// organisation, with `name`. Members deposit both, so neither is guaranteed.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
-#[allow(missing_docs)]
 pub struct Contributor {
+    /// an honorific before the name, e.g. `Prof.`
     pub prefix: Option<String>,
+    /// a suffix after the name, e.g. `Jr.`
     pub suffix: Option<String>,
+    /// the family name, for a person
     pub family: Option<String>,
+    /// the given names, for a person
     pub given: Option<String>,
+    /// the full name, for an organisation
     pub name: Option<String>,
     /// URL-form of an [ORCID](http://orcid.org) identifier
     #[serde(rename = "ORCID")]
@@ -325,8 +345,10 @@ pub struct Contributor {
     /// If true, record owner asserts that the ORCID user completed ORCID OAuth authentication
     #[serde(rename = "authenticated-orcid")]
     pub authenticated_orcid: Option<bool>,
+    /// the institutions this contributor is affiliated with
     pub affiliation: Vec<Affiliation>,
-    pub sequence: String
+    /// `first` for the first contributor listed, `additional` for the rest
+    pub sequence: String,
 }
 
 /// an institution a contributor is affiliated with
@@ -375,7 +397,6 @@ impl Date {
     pub fn as_date_field(&self) -> Option<DateField> {
         self.date_parts.as_date()
     }
-
 }
 
 impl std::fmt::Display for Date {
@@ -384,12 +405,9 @@ impl std::fmt::Display for Date {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self.as_date_field() {
             Some(DateField::Single(date)) => write!(f, "{}", date.format("%Y-%m-%d")),
-            Some(DateField::Range { from, to }) => write!(
-                f,
-                "{}-{}",
-                from.format("%Y-%m-%d"),
-                to.format("%Y-%m-%d")
-            ),
+            Some(DateField::Range { from, to }) => {
+                write!(f, "{}-{}", from.format("%Y-%m-%d"), to.format("%Y-%m-%d"))
+            }
             Some(DateField::Multi(dates)) => {
                 let joined = dates
                     .iter()
@@ -437,6 +455,8 @@ pub enum DateField {
 }
 
 impl DateField {
+    /// The year to cite the work by: the only year for a single date, and the
+    /// first for a range or a list.
     pub fn year(&self) -> i32 {
         match self {
             DateField::Single(date) => date.year(),
@@ -461,16 +481,24 @@ pub struct Update {
     pub label: Option<String>,
 }
 
+/// a [Crossmark](https://www.crossref.org/services/crossmark/) claim the
+/// publisher made about the work, e.g. its peer review status or funding
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
-#[allow(missing_docs)]
 pub struct Assertion {
+    /// what is being asserted, as a machine-readable name
     pub name: String,
+    /// the asserted value
     pub value: Option<String>,
+    /// a link backing the assertion up
     #[serde(rename = "URL")]
     pub url: Option<String>,
+    /// where the assertion is explained
     pub explanation: Option<Explanation>,
+    /// a display-friendly form of `name`
     pub label: Option<String>,
+    /// where to place this assertion when displaying the group
     pub order: Option<i32>,
+    /// the group of assertions this one is displayed under
     pub group: Option<AssertionGroup>,
 }
 
@@ -487,9 +515,9 @@ pub struct Explanation {
     pub url: String,
 }
 
+/// the issue of a journal a work appeared in
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
-#[allow(missing_docs)]
 pub struct Issue {
     /// Date on which the work was published in print
     pub published_print: Option<PartialDate>,
@@ -499,17 +527,21 @@ pub struct Issue {
     pub issue: Option<String>,
 }
 
+/// the heading a set of [`Assertion`]s is displayed under
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
-#[allow(missing_docs)]
 pub struct AssertionGroup {
+    /// the group's machine-readable name
     pub name: String,
+    /// a display-friendly form of `name`
     pub label: Option<String>,
 }
 
+/// the registration agency that minted a DOI, e.g. `crossref` or `datacite`
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
-#[allow(missing_docs)]
 pub struct Agency {
+    /// the agency's identifier
     pub id: String,
+    /// a display-friendly form of `id`
     pub label: Option<String>,
 }
 

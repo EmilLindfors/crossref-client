@@ -202,12 +202,12 @@ pub struct LicenseCount {
     pub work_count: usize,
 }
 
-
 #[derive(Debug, Clone, Deserialize, Serialize)]
-#[allow(missing_docs)]
+/// one of the work types crossref registers, as returned by `/types`
 pub struct CrossrefType {
+    /// the identifier, e.g. `journal-article`
     pub id: String,
-    /// Name of work's publisher
+    /// a display-friendly form of `id`, e.g. `Journal Article`
     pub label: String,
 }
 
@@ -232,16 +232,20 @@ pub struct WorkAgency {
 
 /// response item for the `/prefix/{id}/` route
 #[derive(Debug, Clone, Deserialize, Serialize)]
-#[allow(missing_docs)]
+/// response item for the `/prefixes/{id}` route
 pub struct Prefix {
+    /// url of the member that owns the prefix
     pub member: String,
+    /// the owning member's name
     pub name: String,
+    /// url of the prefix itself
     pub prefix: String,
 }
 
 /// all possible `message-type` of a response
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
+// one variant per `message-type` crossref sends; `as_str` spells each out
 #[allow(missing_docs)]
 pub enum MessageType {
     WorkAgency,
@@ -284,7 +288,6 @@ impl MessageType {
             MessageType::RouteNotFound => "route-not-found",
         }
     }
-
 }
 
 impl std::str::FromStr for MessageType {
@@ -411,6 +414,7 @@ impl Failure {
 /// response item for the `/funder/{id}` route
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case", default)]
+// a mirror of crossref's funder record; the field names are its own
 #[allow(missing_docs)]
 pub struct Funder {
     pub hierarchy_names: HashMap<String, Option<String>>,
@@ -431,6 +435,7 @@ pub struct Funder {
 /// response item for the `/member/{id}` route
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case", default)]
+// a mirror of crossref's member record; the field names are its own
 #[allow(missing_docs)]
 pub struct Member {
     pub primary_name: String,
@@ -451,22 +456,28 @@ pub struct Member {
 
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case", default)]
-#[allow(missing_docs)]
+/// how many DOIs crossref holds for a member
 pub struct Counts {
+    /// every DOI the member has deposited, current and backfile
     pub total_dois: usize,
+    /// DOIs for material published within the last two years
     pub current_dois: usize,
+    /// DOIs for material published more than two years ago
     pub backfile_dois: usize,
 }
 
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case", default)]
-#[allow(missing_docs)]
+/// how a member's DOIs are spread across publication years
 pub struct Breakdowns {
+    /// `[year, count]` pairs, in the order crossref returned them
     pub dois_by_issued_year: Vec<Vec<u32>>,
 }
 
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case", default)]
+// one `f32` per optional field crossref tracks, each the share of the member's
+// deposits that carry it; naming them individually would only restate the field
 #[allow(missing_docs)]
 pub struct Coverage {
     pub affiliations_current: f32,
@@ -495,11 +506,15 @@ pub struct Coverage {
 
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case", default)]
-#[allow(missing_docs)]
+/// a DOI prefix a member owns, and what it exposes through it
 pub struct RefPrefix {
+    /// the prefix itself, e.g. `10.1016`
     pub value: String,
+    /// the name the member deposits under this prefix
     pub name: String,
+    /// whether the member has opened its references for this prefix
     pub public_references: bool,
+    /// who may read the references deposited under this prefix
     pub reference_visibility: Option<Visibility>,
 }
 
@@ -522,7 +537,6 @@ pub struct RefPrefix {
 //    pub issn: Vec<String>,
 //    pub issn_type: Vec<String>,
 //}
-
 
 #[cfg(test)]
 mod tests {

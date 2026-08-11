@@ -8,6 +8,8 @@ use std::str::FromStr;
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(tag = "id")]
 #[serde(rename_all = "kebab-case")]
+// one variant per work type crossref registers; `label` spells each out and a
+// doc comment could say no more than the name already does
 #[allow(missing_docs)]
 pub enum Type {
     BookSection,
@@ -179,7 +181,6 @@ impl CrossrefQuery for Types {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
 
     #[test]
     fn test_types() {

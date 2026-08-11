@@ -74,7 +74,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 review.running_number.as_deref().unwrap_or("-"),
                 review.type_,
                 review.stage.as_deref().unwrap_or("-"),
-                review.recommendation.as_deref().unwrap_or("no recommendation"),
+                review
+                    .recommendation
+                    .as_deref()
+                    .unwrap_or("no recommendation"),
             );
             if let Some(statement) = &review.competing_interest_statement {
                 println!("         competing interests: {statement}");

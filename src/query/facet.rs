@@ -81,7 +81,7 @@ impl Facet {
 }
 
 #[derive(Debug, Clone)]
-#[allow(missing_docs)]
+/// how many values of one facet to ask crossref to count
 pub struct FacetCount {
     /// the targeted facet
     pub facet: Facet,

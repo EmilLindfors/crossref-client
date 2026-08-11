@@ -1,0 +1,68 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  # the shape check against the live api is worth re-running on its own
+  # schedule, since crossref keeps adding fields and members keep depositing
+  # new gaps
+  schedule:
+    - cron: "0 6 * * 1"
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: -D warnings
+
+jobs:
+  check:
+    name: Test, lint and document
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Format
+        run: cargo fmt --all --check
+
+      - name: Clippy
+        run: cargo clippy --all-targets --all-features -- -D warnings
+
+      - name: Docs
+        run: cargo doc --no-deps --all-features
+        env:
+          RUSTDOCFLAGS: -D warnings
+
+      # everything except tests/integration.rs, which needs the network
+      - name: Test (offline)
+        run: cargo test --all-features --lib --bins --doc --test routes --test work_shapes
+
+  live:
+    name: Test against the live api
+    runs-on: ubuntu-latest
+    # forks cannot read the secret, and the live suite is not worth failing a
+    # pull request over when crossref is having a bad day
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Test (live)
+        run: cargo test --all-features --test integration
+        env:
+          # identifies the run to crossref so it lands in the polite pool; the
+          # suite falls back to the anonymous pool if this is unset
+          CROSSREF_MAILTO: ${{ secrets.CROSSREF_MAILTO }}
+
+  msrv:
+    name: Build on the minimum supported Rust version
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.85.0
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo build --all-features

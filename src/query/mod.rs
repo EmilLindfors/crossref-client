@@ -344,10 +344,12 @@ pub mod works;
 /// represents the visibility of an crossref item
 #[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
-#[allow(missing_docs)]
 pub enum Visibility {
+    /// readable by anyone
     Open,
+    /// readable by Metadata Plus subscribers
     Limited,
+    /// not readable
     Closed,
 }
 
@@ -443,8 +445,7 @@ impl Sort {
             Sort::IsReferencedByCount => "is-referenced-by-count",
             Sort::ReferenceCount => "references-count",
             Sort::Created => "created",
-            Sort::Relevance => "relevance"
-            
+            Sort::Relevance => "relevance",
         }
     }
 }
@@ -499,7 +500,9 @@ pub enum ResultControl {
 impl CrossrefQueryParam for ResultControl {
     fn params(&self) -> Vec<(Cow<'_, str>, Cow<'_, str>)> {
         match self {
-            ResultControl::Rows(rows) => vec![(Cow::Borrowed("rows"), Cow::Owned(rows.to_string()))],
+            ResultControl::Rows(rows) => {
+                vec![(Cow::Borrowed("rows"), Cow::Owned(rows.to_string()))]
+            }
             ResultControl::Offset(offset) => {
                 vec![(Cow::Borrowed("offset"), Cow::Owned(offset.to_string()))]
             }
@@ -1029,8 +1032,7 @@ mod tests {
     const API_FUNDERS_FILTERS: &[&str] = &["location"];
 
     /// The filters crossref reports for `/members`.
-    const API_MEMBERS_FILTERS: &[&str] =
-        &["prefix", "backfile-doi-count", "current-doi-count"];
+    const API_MEMBERS_FILTERS: &[&str] = &["prefix", "backfile-doi-count", "current-doi-count"];
 
     #[test]
     fn every_works_filter_is_accepted_by_the_api() {

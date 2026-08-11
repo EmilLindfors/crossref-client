@@ -75,7 +75,6 @@ WorkElement {
 }
 }
 
-
 define_filter! {
 /// Narrows a `/works` query. Every filter is ANDed with the others.
 ///
@@ -284,7 +283,6 @@ values {
 }
 }
 
-
 define_field_queries! {
     /// titles, including the subtitle
     Title => "title" / title,
@@ -454,13 +452,14 @@ impl CrossrefQuery for Works {
 
 /// Wraps queries that target `WorkList`, either directly or combined
 #[derive(Debug, Clone)]
-#[allow(missing_docs)]
 pub enum WorkListQuery {
     /// Target `Works` directly
     Works(WorksQuery),
     /// Target the corresponding `Works` of a specific `Component`
     Combined {
+        /// the component whose works are being targeted
         primary_component: WorksComponent,
+        /// the component id, and the query to narrow its works with
         ident: WorksIdentQuery,
     },
 }
@@ -729,10 +728,7 @@ impl WorksQuery {
         self
     }
     /// Limit the results, or take crossref's default page if given [`None`].
-    pub fn result_control(
-        mut self,
-        result_control: impl Into<Option<WorkResultControl>>,
-    ) -> Self {
+    pub fn result_control(mut self, result_control: impl Into<Option<WorkResultControl>>) -> Self {
         self.result_control = result_control.into();
         self
     }
@@ -827,7 +823,11 @@ impl CrossrefRoute for WorksQuery {
                 Cow::Owned(format_queries(&self.free_form_queries)),
             ));
         }
-        params.extend(self.field_queries.iter().flat_map(CrossrefQueryParam::params));
+        params.extend(
+            self.field_queries
+                .iter()
+                .flat_map(CrossrefQueryParam::params),
+        );
         if !self.filter.is_empty() {
             params.extend(self.filter.params());
         }

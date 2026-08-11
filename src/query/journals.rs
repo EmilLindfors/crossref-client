@@ -1,7 +1,10 @@
 use crate::error::Result;
 use crate::query::encode;
 use crate::query::works::{WorksCombiner, WorksIdentQuery};
-use crate::query::{Component, CrossrefQuery, CrossrefQueryParam, CrossrefRoute, ResourceComponent, ResultControl, format_queries};
+use crate::query::{
+    Component, CrossrefQuery, CrossrefQueryParam, CrossrefRoute, ResourceComponent, ResultControl,
+    format_queries,
+};
 use std::borrow::Cow;
 
 impl_list_query!(
@@ -39,9 +42,11 @@ impl CrossrefRoute for Journals {
         match self {
             Journals::Identifier(s) => Ok(format!("{}/{}", Component::Journals.route()?, s)),
             // `route` already carries its own `?` and is empty for an empty query
-            Journals::Query(query) => {
-                Ok(format!("{}{}", Component::Journals.route()?, query.route()?))
-            }
+            Journals::Query(query) => Ok(format!(
+                "{}{}",
+                Component::Journals.route()?,
+                query.route()?
+            )),
             Journals::Works(combined) => Self::combined_route(combined),
         }
     }
@@ -67,8 +72,11 @@ mod tests {
 
     #[test]
     fn terms_and_paging_render_as_separate_parameters() {
-        let query = JournalsQuery::new("Economic Geography")
-            .result_control(ResultControl::RowsOffset { rows: 10, offset: 20 });
+        let query =
+            JournalsQuery::new("Economic Geography").result_control(ResultControl::RowsOffset {
+                rows: 10,
+                offset: 20,
+            });
 
         assert_eq!(
             "/journals?query=Economic%20Geography&rows=10&offset=20",
