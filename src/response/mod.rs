@@ -65,6 +65,7 @@ impl Response {
         is_journal_list -> JournalList,
         is_funder_list -> FunderList,
         is_license_list -> LicenseList,
+        is_style_list -> StyleList,
     );
 
     /// checks whether the `message` holds a variant of `RouteNotFound`
@@ -123,6 +124,9 @@ impl_list_response!(
     ///
     /// Carries neither facets nor a query echo -- `/licenses` sends neither.
     LicenseList<LicenseCount> {}
+    /// the payload of a `/styles` response: the names of the
+    /// [CSL styles](https://citationstyles.org) crossref can render a citation in
+    StyleList<String> {}
 );
 
 /// the different payloads of a response, and the `message-type` that names them
@@ -159,6 +163,8 @@ pub enum Message {
     FunderList(FunderList),
     /// a list of licenses works in the crossref metadata are published under
     LicenseList(LicenseList),
+    /// a list of the citation styles crossref can render a work in
+    StyleList(StyleList),
 }
 
 impl Message {
@@ -180,6 +186,7 @@ impl Message {
             Message::Funder(_) => MessageType::Funder,
             Message::FunderList(_) => MessageType::FunderList,
             Message::LicenseList(_) => MessageType::LicenseList,
+            Message::StyleList(_) => MessageType::StyleList,
         }
     }
 }
@@ -250,6 +257,7 @@ pub enum MessageType {
     Journal,
     JournalList,
     LicenseList,
+    StyleList,
     ValidationFailure,
     RouteNotFound,
 }
@@ -271,6 +279,7 @@ impl MessageType {
             MessageType::Journal => "journal",
             MessageType::JournalList => "journal-list",
             MessageType::LicenseList => "license-list",
+            MessageType::StyleList => "style-list",
             MessageType::ValidationFailure => "validation-failure",
             MessageType::RouteNotFound => "route-not-found",
         }
@@ -297,6 +306,7 @@ impl std::str::FromStr for MessageType {
             "journal" => Ok(MessageType::Journal),
             "journal-list" => Ok(MessageType::JournalList),
             "license-list" => Ok(MessageType::LicenseList),
+            "style-list" => Ok(MessageType::StyleList),
             "validation-failure" => Ok(MessageType::ValidationFailure),
             "route-not-found" => Ok(MessageType::RouteNotFound),
             _ => Err(Error::InvalidTypeName {
@@ -338,6 +348,12 @@ pub struct FacetItem {
 /// everything crossref objected to in a rejected request
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Failures(Vec<Failure>);
+
+impl From<Vec<Failure>> for Failures {
+    fn from(failures: Vec<Failure>) -> Self {
+        Failures(failures)
+    }
+}
 
 impl Failures {
     /// whether crossref listed no objection at all

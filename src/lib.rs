@@ -275,17 +275,17 @@ pub mod query;
 /// provides the response types of the crossref api
 pub mod response;
 
-// TODO extract to optional feature?
 /// content negotiation
 pub mod cn;
-/// textual data mining
-pub mod tdm;
 
 #[doc(inline)]
 pub use self::error::{Error, Result};
 
 #[doc(inline)]
 pub use self::limit::RateLimit;
+
+#[doc(inline)]
+pub use self::cn::CnFormat;
 
 #[doc(inline)]
 pub use self::query::works::{
@@ -302,7 +302,7 @@ pub use self::query::{
 };
 pub use self::response::{
     CrossrefType, Failure, Failures, Funder, FunderList, Journal, JournalList, LicenseCount,
-    LicenseList, Member, MemberList, MessageType, TypeList, Work, WorkAgency, WorkList,
+    LicenseList, Member, MemberList, MessageType, StyleList, TypeList, Work, WorkAgency, WorkList,
 };
 
 /// The types that appear in the public fields of a [`Work`], re-exported so a
@@ -354,6 +354,18 @@ macro_rules! impl_combined_works_query {
             get_item!(WorkList, resp)
         })+
     };
+}
+
+/// The bare body crossref answers a content-negotiation request it cannot
+/// serve with, which is shaped nothing like a `validation-failure`.
+#[derive(serde::Deserialize)]
+struct TransformFailure {
+    /// what went wrong, e.g. `style-not-found`
+    code: String,
+    /// the DOI that was asked for
+    doi: Option<String>,
+    /// the explanation, e.g. `Style [vancouver] does not exist`
+    message: String,
 }
 
 /// Struct for Crossref search API methods
@@ -445,12 +457,21 @@ impl Crossref {
     /// `retry-after` asks, or exponentially from the reported interval -- and
     /// the request is sent again up to [`CrossrefBuilder::max_retries`] times.
     async fn send(&self, url: &str) -> Result<reqwest::Response> {
+        self.send_with(url, |request| request).await
+    }
+
+    /// [`Crossref::send`], with `customize` applied to the request first.
+    async fn send_with(
+        &self,
+        url: &str,
+        customize: impl Fn(reqwest::RequestBuilder) -> reqwest::RequestBuilder,
+    ) -> Result<reqwest::Response> {
         let mut attempt = 0u32;
         loop {
             self.limiter.acquire().await;
             tracing::debug!(%url, attempt, "crossref request");
 
-            let response = self.client.get(url).send().await?;
+            let response = customize(self.client.get(url)).send().await?;
             self.limiter.observe(response.headers());
 
             if response.status() != StatusCode::TOO_MANY_REQUESTS {
@@ -477,7 +498,9 @@ impl Crossref {
     /// Turns a non-success response into the error crossref described.
     ///
     /// Crossref answers a bad filter, sort field or field query with a `400`
-    /// and a `validation-failure` body naming what it did not recognise, which
+    /// and a `validation-failure` body naming what it did not recognise, and an
+    /// unservable content-negotiation format with a `406` and a bare
+    /// `{code, message}` -- both of which
     /// [`reqwest::Response::error_for_status`] would throw away.
     async fn into_success(response: reqwest::Response) -> Result<reqwest::Response> {
         if response.status().is_success() {
@@ -489,13 +512,24 @@ impl Crossref {
         let status = response.error_for_status_ref().expect_err("not a success");
         let body = response.text().await.unwrap_or_default();
 
-        match serde_json::from_str::<Response>(&body) {
-            Ok(Response {
-                message: Message::ValidationFailure(failures),
-                ..
-            }) => Err(Error::ValidationFailure { failures }),
-            _ => Err(status.into()),
+        if let Ok(Response {
+            message: Message::ValidationFailure(failures),
+            ..
+        }) = serde_json::from_str::<Response>(&body)
+        {
+            return Err(Error::ValidationFailure { failures });
         }
+        if let Ok(failure) = serde_json::from_str::<TransformFailure>(&body) {
+            return Err(Error::ValidationFailure {
+                failures: vec![Failure {
+                    type_: failure.code,
+                    value: failure.doi.unwrap_or_default(),
+                    message: failure.message,
+                }]
+                .into(),
+            });
+        }
+        Err(status.into())
     }
 
     //fn get_response_blocking<T: CrossrefQuery>(&self, query: &T) -> Result<Response> {
@@ -653,6 +687,57 @@ impl Crossref {
     ///
     pub fn deep_page<T: Into<WorkListQuery>>(&self, query: T) -> WorkListIterator<'_> {
         WorkListIterator::new(query.into(), self)
+    }
+
+    /// Re-serialize the work identified by `doi` into another format.
+    ///
+    /// Crossref renders the registered metadata itself, so this never goes
+    /// through [`Work`] and the body is returned verbatim -- BibTeX, RIS, RDF
+    /// or a citation formatted in a [CSL style](Crossref::styles).
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use crossref_client::{CnFormat, Crossref};
+    /// # async fn run() -> Result<(), crossref_client::Error> {
+    /// # let client = Crossref::builder().build()?;
+    /// let bibtex = client
+    ///     .transform("10.1037/0003-066X.59.1.29", &CnFormat::BibTex)
+    ///     .await?;
+    ///
+    /// let citation = client
+    ///     .transform("10.1037/0003-066X.59.1.29", &CnFormat::bibliography("apa"))
+    ///     .await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// Fails with [`Error::ValidationFailure`] if crossref cannot serve the
+    /// format for this DOI -- an unknown CSL style is the usual cause.
+    pub async fn transform(&self, doi: &str, format: &CnFormat) -> Result<String> {
+        let url = format!("{}/works/{}/transform", self.base_url, doi);
+        let response = self
+            .send_with(&url, |request| {
+                request.header(reqwest::header::ACCEPT, format.accept().as_ref())
+            })
+            .await?;
+
+        Ok(Self::into_success(response).await?.text().await?)
+    }
+
+    /// Return the [CSL styles](https://citationstyles.org) crossref can render
+    /// a citation in, for [`CnFormat::Bibliography`].
+    ///
+    /// Roughly 2 900 of them, in one response.
+    pub async fn styles(&self) -> Result<StyleList> {
+        let response = self.send(&format!("{}/styles", self.base_url)).await?;
+        let body = Self::into_success(response).await?.bytes().await?;
+        let response: Response =
+            serde_json::from_slice(&body).map_err(|error| Error::Serde { error })?;
+
+        get_item!(StyleList, response)
     }
 
     /// Return the `Agency` that registers the `Work` identified by  the `doi`.

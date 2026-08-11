@@ -6,7 +6,7 @@
 
 use crossref_client::query::ResultControl;
 use crossref_client::{
-    Crossref, Error, FieldQuery, JournalsQuery, LicensesQuery, Type, WorkElement,
+    CnFormat, Crossref, Error, FieldQuery, JournalsQuery, LicensesQuery, Type, WorkElement,
     WorkResultControl, WorksFilter, WorksIdentQuery, WorksQuery,
 };
 use std::future::Future;
@@ -210,6 +210,59 @@ fn the_peer_reviews_of_a_work_can_be_found_through_its_relations() {
                 .all(|work| work.review.is_some() && work.relation.is_some()),
             "every hit is a review carrying its own metadata"
         );
+    });
+}
+
+#[test]
+fn a_work_can_be_transformed_into_bibtex_and_a_formatted_citation() {
+    api_test(|client| async move {
+        let doi = "10.1037/0003-066X.59.1.29";
+
+        let bibtex = client
+            .transform(doi, &CnFormat::BibTex)
+            .await
+            .expect("bibtex");
+        // returned verbatim, and crossref pads its bibtex with a leading space
+        assert!(bibtex.trim_start().starts_with("@article"), "not bibtex: {bibtex}");
+
+        let citation = client
+            .transform(doi, &CnFormat::bibliography("apa"))
+            .await
+            .expect("an apa citation");
+        assert!(citation.contains("Ray, O."), "not a citation: {citation}");
+    });
+}
+
+#[test]
+fn an_unknown_citation_style_reports_crossrefs_own_message() {
+    api_test(|client| async move {
+        // a `406` with a bare `{code, message}` body, which is shaped nothing
+        // like the `validation-failure` the query routes answer with
+        let error = client
+            .transform(
+                "10.1037/0003-066X.59.1.29",
+                &CnFormat::bibliography("not-a-style"),
+            )
+            .await
+            .expect_err("crossref has no such style");
+
+        let Error::ValidationFailure { failures } = error else {
+            panic!("expected a validation failure, got {error:?}");
+        };
+        assert!(
+            failures.to_string().contains("not-a-style"),
+            "crossref's own message should survive: {failures}"
+        );
+    });
+}
+
+#[test]
+fn the_styles_a_citation_can_be_rendered_in_are_listed() {
+    api_test(|client| async move {
+        let styles = client.styles().await.expect("a style list");
+
+        assert!(styles.items.len() > 1_000);
+        assert!(styles.items.iter().any(|style| style == "apa"));
     });
 }
 
