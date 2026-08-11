@@ -33,6 +33,57 @@ response and retries a `429`, so a `Crossref` -- and every clone of it, which
 shares the limiter -- stays inside the budget it was granted.
 
 
+## Install
+
+### As a library
+
+```shell
+cargo add crossref-client
+```
+
+### As a command line tool
+
+Every release carries a prebuilt `crossref` binary, so this needs no rust
+toolchain. Each archive holds the binary and the two licences; set `version`
+to the [latest release](https://github.com/EmilLindfors/crossref-client/releases/latest)
+and `target` to your platform.
+
+**Linux and macOS**
+
+```shell
+version=v0.2.0
+# x86_64-unknown-linux-gnu | aarch64-apple-darwin (apple silicon) | x86_64-apple-darwin (intel)
+target=x86_64-unknown-linux-gnu
+
+curl -fsSL "https://github.com/EmilLindfors/crossref-client/releases/download/$version/crossref-$version-$target.tar.gz" | tar xz
+sudo install "crossref-$version-$target/crossref" /usr/local/bin/
+```
+
+The binary is unsigned. Downloaded with `curl` it runs as it is; downloaded
+through a browser, macOS quarantines it until
+`xattr -d com.apple.quarantine /usr/local/bin/crossref`.
+
+**Windows** (PowerShell)
+
+```powershell
+$version = "v0.2.0"
+$target = "x86_64-pc-windows-msvc"
+
+Invoke-WebRequest "https://github.com/EmilLindfors/crossref-client/releases/download/$version/crossref-$version-$target.zip" -OutFile crossref.zip
+Expand-Archive crossref.zip -DestinationPath .
+# then move crossref-$version-$target\crossref.exe somewhere on your PATH
+```
+
+**From source**, which needs rust 1.85 or newer:
+
+```shell
+cargo install crossref-client --features cli
+```
+
+Either way, check it with `crossref --version`. What the binary can do is
+under [Command Line Application](#command-line-application).
+
+
 ## Usage
 
 ### Create a `Crossref` client:
@@ -286,10 +337,8 @@ async fn run() -> Result<(), crossref_client::Error> {
 
 ## Command Line Application
 
-### Installation
-```shell
-cargo install crossref-client --features cli
-```
+A prebuilt binary per platform, or `cargo install crossref-client --features cli`
+-- see [Install](#as-a-command-line-tool).
 
 ### Usage
 
